@@ -1,0 +1,110 @@
+{
+    "name": "check_aml_pep",
+    "label": "Check AML/PEP",
+    "description": "Run full AML/PEP screening against sanctions lists for the company and its owners/role-holders. Logged for audit purposes — set the correct purpose.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "purpose",
+            "type": "select",
+            "label": "Purpose of lookup",
+            "required": true,
+            "default": "kyc_onboarding",
+            "help": "Used for audit log and rate-limiting policy on the Firmaradar side.",
+            "options": [
+                {"label": "KYC onboarding (new customer)", "value": "kyc_onboarding"},
+                {"label": "KYC review (existing customer)", "value": "kyc_review"},
+                {"label": "Risk monitoring", "value": "risk_monitoring"},
+                {"label": "Manual request", "value": "manual"}
+            ]
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/aml/check",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "orgnr": "{{parameters.orgnr}}",
+            "purpose": "{{parameters.purpose}}"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "rapport_id",
+            "type": "text",
+            "label": "Rapport-ID"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status (clean/match/review)"
+        },
+        {
+            "name": "high_risk",
+            "type": "boolean",
+            "label": "Høy risiko"
+        },
+        {
+            "name": "treff",
+            "type": "array",
+            "label": "Treff (sanksjon/PEP)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "navn", "type": "text", "label": "Navn"},
+                    {"name": "rolle", "type": "text", "label": "Rolle i selskapet"},
+                    {"name": "kilde", "type": "text", "label": "Kilde (PEP/sanksjon)"},
+                    {"name": "score", "type": "number", "label": "Match-score (0-100)"},
+                    {"name": "kommentar", "type": "text", "label": "Kommentar"}
+                ]
+            }
+        },
+        {
+            "name": "audit_log_id",
+            "type": "text",
+            "label": "Audit-log-ID"
+        },
+        {
+            "name": "checked_at",
+            "type": "date",
+            "label": "Sjekket"
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "rapport_id": "aml-2026-05-27-abcd1234",
+        "status": "clean",
+        "high_risk": false,
+        "treff": [],
+        "audit_log_id": "log-9876",
+        "checked_at": "2026-05-27T08:30:00Z"
+    }
+}

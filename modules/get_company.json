@@ -1,0 +1,133 @@
+{
+    "name": "get_company",
+    "label": "Get company",
+    "description": "Get a full company profile by organisation number: organisation form, NACE codes, employees, address, financials, owners and roles.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Selskapsnavn"
+        },
+        {
+            "name": "organisasjonsform",
+            "type": "text",
+            "label": "Organisasjonsform"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status"
+        },
+        {
+            "name": "naceKode",
+            "type": "text",
+            "label": "NACE-kode"
+        },
+        {
+            "name": "ansatte",
+            "type": "uinteger",
+            "label": "Antall ansatte"
+        },
+        {
+            "name": "adresse",
+            "type": "collection",
+            "label": "Forretningsadresse",
+            "spec": [
+                {"name": "gate", "type": "text", "label": "Gate"},
+                {"name": "postnummer", "type": "text", "label": "Postnummer"},
+                {"name": "poststed", "type": "text", "label": "Poststed"},
+                {"name": "kommune", "type": "text", "label": "Kommune"}
+            ]
+        },
+        {
+            "name": "stiftelsesdato",
+            "type": "date",
+            "label": "Stiftelsesdato"
+        },
+        {
+            "name": "regnskap",
+            "type": "collection",
+            "label": "Siste regnskap",
+            "spec": [
+                {"name": "ar", "type": "uinteger", "label": "År"},
+                {"name": "omsetning", "type": "number", "label": "Omsetning"},
+                {"name": "resultat", "type": "number", "label": "Resultat før skatt"},
+                {"name": "egenkapital", "type": "number", "label": "Egenkapital"}
+            ]
+        },
+        {
+            "name": "eiere",
+            "type": "array",
+            "label": "Eiere",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "navn", "type": "text", "label": "Navn"},
+                    {"name": "orgnr", "type": "text", "label": "Orgnr"},
+                    {"name": "andel", "type": "number", "label": "Andel (%)"},
+                    {"name": "type", "type": "text", "label": "Type"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "navn": "Eksempel AS",
+        "organisasjonsform": "AS",
+        "status": "aktiv",
+        "naceKode": "62.010",
+        "ansatte": 24,
+        "adresse": {
+            "gate": "Storgata 1",
+            "postnummer": "0155",
+            "poststed": "Oslo",
+            "kommune": "0301"
+        },
+        "stiftelsesdato": "2010-04-12",
+        "regnskap": {
+            "ar": 2025,
+            "omsetning": 18500000,
+            "resultat": 2350000,
+            "egenkapital": 8400000
+        },
+        "eiere": [
+            {"navn": "Eier AS", "orgnr": "888888888", "andel": 75.0, "type": "selskap"},
+            {"navn": "Person Nordmann", "orgnr": "", "andel": 25.0, "type": "person"}
+        ]
+    }
+}

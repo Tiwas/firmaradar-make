@@ -1,0 +1,118 @@
+{
+    "name": "get_ownership",
+    "label": "Get ownership",
+    "description": "Get the group hierarchy up (owners) and/or down (subsidiaries) for a company. Returns the ownership tree with shares per level.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "direction",
+            "type": "select",
+            "label": "Direction",
+            "required": true,
+            "default": "both",
+            "options": [
+                {"label": "Both (up and down)", "value": "both"},
+                {"label": "Up (owners)", "value": "up"},
+                {"label": "Down (subsidiaries)", "value": "down"}
+            ]
+        },
+        {
+            "name": "depth",
+            "type": "uinteger",
+            "label": "Depth",
+            "default": 5,
+            "validate": {
+                "min": 1,
+                "max": 12
+            },
+            "help": "Number of levels to traverse up or down (1-12)."
+        },
+        {
+            "name": "include_persons",
+            "type": "boolean",
+            "label": "Include person-level owners",
+            "default": false,
+            "help": "Include individual person owners. Requires full_ownership access on your subscription."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/ownership",
+        "method": "GET",
+        "qs": {
+            "direction": "{{parameters.direction}}",
+            "depth": "{{parameters.depth}}",
+            "include_persons": "{{if(parameters.include_persons, 1, 0)}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer (rot)"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Selskapsnavn"
+        },
+        {
+            "name": "direction",
+            "type": "text",
+            "label": "Retning"
+        },
+        {
+            "name": "depth",
+            "type": "uinteger",
+            "label": "Dybde brukt"
+        },
+        {
+            "name": "noder",
+            "type": "array",
+            "label": "Noder i hierarkiet",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Orgnr"},
+                    {"name": "navn", "type": "text", "label": "Navn"},
+                    {"name": "niva", "type": "integer", "label": "Nivå (negativt = opp)"},
+                    {"name": "andel", "type": "number", "label": "Andel (%)"},
+                    {"name": "type", "type": "text", "label": "Type (selskap/person)"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "navn": "Eksempel AS",
+        "direction": "both",
+        "depth": 5,
+        "noder": [
+            {"orgnr": "888888888", "navn": "Eier AS", "niva": -1, "andel": 75.0, "type": "selskap"},
+            {"orgnr": "777777777", "navn": "Konsernmor AS", "niva": -2, "andel": 100.0, "type": "selskap"},
+            {"orgnr": "666666666", "navn": "Datter AS", "niva": 1, "andel": 100.0, "type": "selskap"}
+        ]
+    }
+}

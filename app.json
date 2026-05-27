@@ -1,0 +1,32 @@
+{
+    "name": "firmaradar",
+    "label": "Firmaradar",
+    "version": 1,
+    "description": "Slå opp norske selskaper, eierstrukturer, konsern, roller, regnskap og AML/PEP-data direkte i Make.com-scenarier. Samme datakilde som Firmaradar MCP-server og n8n-pakken.",
+    "language": "en",
+    "private": true,
+    "countries": ["no"],
+    "categories": ["business", "data"],
+    "theme": "#4f46e5",
+    "audience": "global",
+    "website": "https://firmaradar.no",
+    "documentationUrl": "https://firmaradar.no/dokumentasjon",
+    "supportUrl": "https://firmaradar.no/kontakt",
+    "icon": {
+        "comment": "Logo-filer leveres av Marius. Plassholder-referanse — erstatt med faktisk icon.png (200x200 transparent PNG) før submission.",
+        "filename": "icon.png"
+    },
+    "base": {
+        "baseUrl": "{{connection.baseUrl}}",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    }
+}

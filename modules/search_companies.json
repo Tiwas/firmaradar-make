@@ -1,0 +1,94 @@
+{
+    "name": "search_companies",
+    "label": "Search companies",
+    "description": "Search Norwegian companies by name or organisation number. Returns up to N matches with orgnr, name, organisation form and status.",
+    "connection": "apiKey",
+    "type": "search",
+    "parameters": [
+        {
+            "name": "query",
+            "type": "text",
+            "label": "Search query",
+            "required": true,
+            "help": "Company name or 9-digit organisation number."
+        },
+        {
+            "name": "limit",
+            "type": "uinteger",
+            "label": "Max results",
+            "default": 20,
+            "validate": {
+                "min": 1,
+                "max": 100
+            },
+            "help": "Maximum number of matches to return (1-100)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/search/companies",
+        "method": "GET",
+        "qs": {
+            "q": "{{parameters.query}}",
+            "limit": "{{parameters.limit}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "iterate": "{{body.results}}",
+            "output": {
+                "orgnr": "{{item.orgnr}}",
+                "navn": "{{item.navn}}",
+                "organisasjonsform": "{{item.organisasjonsform}}",
+                "status": "{{item.status}}",
+                "registreringsdato": "{{item.registreringsdato}}",
+                "kommune": "{{item.kommune}}"
+            },
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Selskapsnavn"
+        },
+        {
+            "name": "organisasjonsform",
+            "type": "text",
+            "label": "Organisasjonsform"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status"
+        },
+        {
+            "name": "registreringsdato",
+            "type": "date",
+            "label": "Registrert"
+        },
+        {
+            "name": "kommune",
+            "type": "text",
+            "label": "Kommune"
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "navn": "Eksempel AS",
+        "organisasjonsform": "AS",
+        "status": "aktiv",
+        "registreringsdato": "2010-04-12",
+        "kommune": "0301"
+    }
+}

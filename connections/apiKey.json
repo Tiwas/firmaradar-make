@@ -1,0 +1,43 @@
+{
+    "name": "apiKey",
+    "label": "Firmaradar API Key",
+    "type": "basic",
+    "parameters": [
+        {
+            "name": "apiKey",
+            "type": "password",
+            "label": "API Key",
+            "required": true,
+            "help": "Generate at https://firmaradar.no/min-side/api-keys. The key is stored encrypted in Make."
+        },
+        {
+            "name": "baseUrl",
+            "type": "url",
+            "label": "Base URL",
+            "required": true,
+            "default": "https://firmaradar.no",
+            "help": "Change only if you run a self-hosted Firmaradar instance."
+        }
+    ],
+    "communication": {
+        "url": "{{parameters.baseUrl}}/api/v1/health/ping",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{parameters.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "error": {
+                "message": "[{{statusCode}}] Authentication failed. Verify your API key at https://firmaradar.no/min-side/api-keys. {{ifempty(body.message, body.error)}}"
+            },
+            "valid": {
+                "condition": "{{statusCode === 200}}"
+            },
+            "data": {
+                "apiKey": "{{parameters.apiKey}}",
+                "baseUrl": "{{parameters.baseUrl}}"
+            }
+        }
+    }
+}

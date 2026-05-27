@@ -1,0 +1,175 @@
+{
+    "name": "kyc-screening",
+    "label": "Firmaradar — KYC-screening (orgnr → AML/PEP + eierskap)",
+    "description": "Gitt et orgnr, kjør AML/PEP-sjekk og hent eierskap. Router-grenen sender Slack-varsel hvis høy risiko, ellers logges resultatet til Google Sheets. Importer som scenario-mal og koble dine egne Slack/Sheets-tilkoblinger til.",
+    "flow": [
+        {
+            "id": 1,
+            "module": "webhooks:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": "{{webhookId}}"
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "comment": "Trigger — webhook eller annen trigger. Forventet payload: { orgnr: '999999999' }."
+            }
+        },
+        {
+            "id": 2,
+            "module": "firmaradar:check_aml_pep",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": "{{connectionId}}"
+            },
+            "mapper": {
+                "orgnr": "{{1.orgnr}}",
+                "purpose": "kyc_onboarding"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                },
+                "comment": "Full AML/PEP-screening med formål = kyc_onboarding."
+            }
+        },
+        {
+            "id": 3,
+            "module": "firmaradar:get_ownership",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": "{{connectionId}}"
+            },
+            "mapper": {
+                "orgnr": "{{1.orgnr}}",
+                "direction": "up",
+                "depth": 5,
+                "include_persons": true
+            },
+            "metadata": {
+                "designer": {
+                    "x": 600,
+                    "y": 0
+                },
+                "comment": "Hent eierskap 5 nivåer opp inkludert person-eiere."
+            }
+        },
+        {
+            "id": 4,
+            "module": "builtin:BasicRouter",
+            "version": 1,
+            "mapper": null,
+            "metadata": {
+                "designer": {
+                    "x": 900,
+                    "y": 0
+                }
+            },
+            "routes": [
+                {
+                    "flow": [
+                        {
+                            "id": 5,
+                            "module": "slack:CreateMessage",
+                            "version": 1,
+                            "parameters": {
+                                "__IMTCONN__": "{{slackConnectionId}}"
+                            },
+                            "filter": {
+                                "name": "Høy risiko",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{2.high_risk}}",
+                                            "o": "text:equal",
+                                            "b": "true"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "channel": "#compliance",
+                                "text": "ALARM — Firmaradar AML/PEP-screening flagget høy risiko for orgnr {{1.orgnr}}.\nRapport-ID: {{2.rapport_id}}\nStatus: {{2.status}}\nTreff: {{length(2.treff)}}"
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 1200,
+                                    "y": -150
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 6,
+                            "module": "google-sheets:addRow",
+                            "version": 1,
+                            "parameters": {
+                                "__IMTCONN__": "{{sheetsConnectionId}}"
+                            },
+                            "filter": {
+                                "name": "Lav risiko",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{2.high_risk}}",
+                                            "o": "text:equal",
+                                            "b": "false"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "sheetId": "{{sheetId}}",
+                                "values": {
+                                    "orgnr": "{{1.orgnr}}",
+                                    "rapport_id": "{{2.rapport_id}}",
+                                    "status": "{{2.status}}",
+                                    "owners_up": "{{length(3.noder)}}",
+                                    "checked_at": "{{2.checked_at}}"
+                                }
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 1200,
+                                    "y": 150
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "instant": false,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu1.make.com",
+        "notes": [
+            "Importér via Make.com → Scenarios → Create → Import blueprint.",
+            "Koble dine egne Firmaradar-, Slack- og Google Sheets-tilkoblinger til når Make spør under import.",
+            "Endre 'purpose' i modul 2 fra kyc_onboarding til kyc_review for periodisk re-screening.",
+            "Logo og branding leveres av Marius — denne mal-filen er auth-uavhengig."
+        ]
+    }
+}

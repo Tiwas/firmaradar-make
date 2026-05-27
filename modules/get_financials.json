@@ -1,0 +1,91 @@
+{
+    "name": "get_financials",
+    "label": "Get financials",
+    "description": "Get annual financial statements and key figures for a company. Returns revenue, profit, equity and key ratios per year.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "years",
+            "type": "uinteger",
+            "label": "Years back",
+            "default": 3,
+            "validate": {
+                "min": 1,
+                "max": 10
+            },
+            "help": "Number of historical years to include (1-10)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/financials",
+        "method": "GET",
+        "qs": {
+            "years": "{{parameters.years}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "ar_rapporter",
+            "type": "array",
+            "label": "Årsrapporter",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "ar", "type": "uinteger", "label": "År"},
+                    {"name": "omsetning", "type": "number", "label": "Omsetning"},
+                    {"name": "driftsresultat", "type": "number", "label": "Driftsresultat"},
+                    {"name": "resultat_for_skatt", "type": "number", "label": "Resultat før skatt"},
+                    {"name": "arsresultat", "type": "number", "label": "Årsresultat"},
+                    {"name": "egenkapital", "type": "number", "label": "Egenkapital"},
+                    {"name": "sum_eiendeler", "type": "number", "label": "Sum eiendeler"},
+                    {"name": "egenkapitalandel", "type": "number", "label": "Egenkapitalandel (%)"},
+                    {"name": "likviditetsgrad", "type": "number", "label": "Likviditetsgrad"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "ar_rapporter": [
+            {
+                "ar": 2025,
+                "omsetning": 18500000,
+                "driftsresultat": 2400000,
+                "resultat_for_skatt": 2350000,
+                "arsresultat": 1820000,
+                "egenkapital": 8400000,
+                "sum_eiendeler": 14200000,
+                "egenkapitalandel": 59.2,
+                "likviditetsgrad": 2.1
+            }
+        ]
+    }
+}

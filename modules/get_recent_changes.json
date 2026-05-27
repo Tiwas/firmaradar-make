@@ -1,0 +1,96 @@
+{
+    "name": "get_recent_changes",
+    "label": "Get recent changes",
+    "description": "Get changes registered on a company over the last N days — name changes, address updates, role changes, BRREG announcements and risk signals.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "days",
+            "type": "uinteger",
+            "label": "Days back",
+            "default": 30,
+            "validate": {
+                "min": 1,
+                "max": 365
+            },
+            "help": "How many days back to look for changes (1-365)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/changes",
+        "method": "GET",
+        "qs": {
+            "days": "{{parameters.days}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "vindu_dager",
+            "type": "uinteger",
+            "label": "Vindu (dager)"
+        },
+        {
+            "name": "endringer",
+            "type": "array",
+            "label": "Endringer",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "dato", "type": "date", "label": "Dato"},
+                    {"name": "type", "type": "text", "label": "Type endring"},
+                    {"name": "kategori", "type": "text", "label": "Kategori (rolle/adresse/signal/kunngjøring)"},
+                    {"name": "beskrivelse", "type": "text", "label": "Beskrivelse"},
+                    {"name": "kilde", "type": "text", "label": "Kilde"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "vindu_dager": 30,
+        "endringer": [
+            {
+                "dato": "2026-05-20",
+                "type": "rolle_fratradt",
+                "kategori": "rolle",
+                "beskrivelse": "Daglig leder fratrådt",
+                "kilde": "BRREG"
+            },
+            {
+                "dato": "2026-05-12",
+                "type": "kunngjoring",
+                "kategori": "kunngjøring",
+                "beskrivelse": "Tvangsoppløsning varslet",
+                "kilde": "BRREG"
+            }
+        ]
+    }
+}
