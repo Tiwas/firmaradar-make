@@ -87,13 +87,14 @@ Samme tilkobling gjenbrukes på tvers av alle Firmaradar-moduler i alle scenarie
 
 ## Moduler
 
-7 moduler i v0.1, samlet under én Firmaradar-app:
+8 moduler, samlet under én Firmaradar-app:
 
 ### Søk (search-modul)
 - **Search companies** — søk på navn eller orgnr, returnerer opptil 100 rader
 
 ### Selskaps-handlinger (action-moduler)
 - **Get company** — full profil (organisasjonsform, NACE, ansatte, adresse, regnskap, eiere, roller)
+- **Get IP portfolio** — patenter, varemerker og design fra Patentstyret (dedikert IP-action)
 - **Get ownership** — konsernhierarki opp og ned, dybde 1–12, valgfri person-inkludering
 - **Get roles** — styre, daglig leder, prokura (med valgfri fratrådt-historikk)
 - **Get financials** — årsregnskap og nøkkeltall opptil 10 år tilbake

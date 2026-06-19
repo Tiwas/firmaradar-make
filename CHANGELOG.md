@@ -38,6 +38,13 @@ Første offentlige release.
 
 ## [Planlagt]
 
+### Lagt til i kilde (ikke submittet til Make-portalen ennå)
+
+- `get_company_ip` — dedikert «Get IP portfolio»-action (patenter, varemerker og
+  design fra Patentstyret). Henter `ip_rettigheter` direkte. Gjør IP like
+  oppdagbar som regnskap/roller/eierskap (samme grep som MCP-verktøyet
+  `get_company_ip` og n8n-operasjonen `getIp`). Submittes når appen er godkjent.
+
 ### [0.2.0]
 
 - Legg til moduler: `get_announcements`, `get_signals`, `search_persons`, `search_persons` med fødselsår-filter, `compare_companies`, `list_companies_in_nace`.

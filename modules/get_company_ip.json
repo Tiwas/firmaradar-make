@@ -1,0 +1,78 @@
+{
+    "name": "get_company_ip",
+    "label": "Get IP portfolio",
+    "description": "Get a company's intellectual-property portfolio from Patentstyret: patents, trademarks and designs (totals, active counts, and a list of individual rights). A dedicated action so IP is as discoverable as financials, roles and ownership.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}",
+        "method": "GET",
+        "qs": {
+            "ip": "1"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body.ip_rettigheter}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "available", "type": "boolean", "label": "Har IP-data"},
+        {"name": "patents", "type": "uinteger", "label": "Patenter"},
+        {"name": "patents_active", "type": "uinteger", "label": "Aktive patenter"},
+        {"name": "trademarks", "type": "uinteger", "label": "Varemerker"},
+        {"name": "trademarks_active", "type": "uinteger", "label": "Aktive varemerker"},
+        {"name": "designs", "type": "uinteger", "label": "Design"},
+        {"name": "designs_active", "type": "uinteger", "label": "Aktive design"},
+        {"name": "is_ip_active", "type": "boolean", "label": "Har aktive rettigheter"},
+        {
+            "name": "rights",
+            "type": "array",
+            "label": "Rettigheter (nyeste først)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "date", "type": "date", "label": "Dato"},
+                    {"name": "kind", "type": "text", "label": "Type"},
+                    {"name": "regnr", "type": "text", "label": "Reg.nr"},
+                    {"name": "status", "type": "text", "label": "Status"},
+                    {"name": "title", "type": "text", "label": "Tittel"}
+                ]
+            }
+        },
+        {"name": "rights_more", "type": "uinteger", "label": "Flere rettigheter (ut over lista)"}
+    ],
+    "samples": {
+        "available": true,
+        "patents": 393,
+        "patents_active": 1,
+        "trademarks": 130,
+        "trademarks_active": 41,
+        "designs": 0,
+        "designs_active": 0,
+        "is_ip_active": true,
+        "rights": [
+            {"date": "2026-06-18", "kind": "trademark", "regnr": "202607626", "status": "Under behandling", "title": "OSLO ENERGY FORUM"}
+        ],
+        "rights_more": 17
+    }
+}
