@@ -1,0 +1,178 @@
+{
+    "name": "check_fiv_bulk",
+    "label": "Bulk: distress check (FIV)",
+    "description": "Portfolio distress-screening (foretak i vanskeligheter under the EU state-aid rules on companies in difficulty, GBER art. 2(18) criteria a-e) for up to 50 companies in one call, each assessed at both company and group level. Each orgnr is evaluated independently; per-orgnr compliance-gates (ENK block, invalid orgnr) are returned as a per-orgnr error instead of failing the whole batch. Each orgnr counts as one unit against your quota.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnrs",
+            "type": "array",
+            "label": "Organisation numbers (max 50)",
+            "required": true,
+            "help": "1-50 nine-digit Norwegian organisation numbers. Each orgnr counts as one unit against your quota.",
+            "spec": {
+                "name": "orgnr",
+                "type": "text",
+                "label": "Organisation number",
+                "validate": {
+                    "pattern": "^[0-9]{9}$",
+                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                }
+            }
+        },
+        {
+            "name": "skip_freshness",
+            "type": "boolean",
+            "label": "Skip freshness window",
+            "required": false,
+            "default": false,
+            "help": "Accept FIV data even if the underlying financial/BRREG snapshot is older than the normal freshness window (retrospective screening)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/fiv/bulk",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "orgnrs": "{{parameters.orgnrs}}",
+            "skip_freshness": "{{parameters.skip_freshness}}"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "results",
+            "type": "array",
+            "label": "Per-company results",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+                    {"name": "status", "type": "text", "label": "FIV-status — reflekterer begge nivåer"},
+                    {"name": "error", "type": "text", "label": "Per-orgnr feil (hvis noen)"},
+                    {"name": "score", "type": "number", "label": "Score"},
+                    {"name": "confidence", "type": "number", "label": "Konfidens"},
+                    {"name": "company_status", "type": "text", "label": "Selskaps-leddet alene (før konsern-leddet)"},
+                    {"name": "distress_basis", "type": "text", "label": "Grunnlag: company / group / company_and_group"},
+                    {
+                        "name": "group_assessment",
+                        "type": "collection",
+                        "label": "Konsern-leddet (to-nivå-testen, GBER art. 2(18))",
+                        "spec": [
+                            {"name": "evaluated", "type": "boolean", "label": "Selskapet inngår i et konsern"},
+                            {"name": "status", "type": "text", "label": "Konsern-status: clean/distressed/doubt/unknown"},
+                            {"name": "basis", "type": "text", "label": "Databasis: konsernregnskap/aggregert_selskapsregnskap/utenlandsk_majoritet/ingen_data"},
+                            {"name": "root_orgnr", "type": "text", "label": "Konsernspissens orgnr"},
+                            {"name": "root_name", "type": "text", "label": "Konsernspissens navn"},
+                            {"name": "members_total", "type": "uinteger", "label": "Antall selskaper i treet"},
+                            {"name": "members_evaluated", "type": "uinteger", "label": "Antall med regnskapsdata"},
+                            {
+                                "name": "members_distressed",
+                                "type": "array",
+                                "label": "Selskaper i konsernet som hver for seg er FIV",
+                                "spec": {
+                                    "type": "collection",
+                                    "spec": [
+                                        {"name": "orgnr", "type": "text", "label": "Orgnr"},
+                                        {"name": "navn", "type": "text", "label": "Navn"},
+                                        {
+                                            "name": "triggers",
+                                            "type": "array",
+                                            "label": "Utløste kriterier",
+                                            "spec": {"type": "text"}
+                                        }
+                                    ]
+                                }
+                            },
+                            {"name": "capital_loss_ratio", "type": "number", "label": "Andel av konsernets innskutte kapital som er tapt"},
+                            {"name": "truncated", "type": "boolean", "label": "Treet avkortet (over 500 selskaper)"}
+                        ]
+                    },
+                    {"name": "rescuable_by_group", "type": "boolean", "label": "Konsernet kan rette opp forholdet med kapitaltilførsel (\"Ja (!)\")"},
+                    {
+                        "name": "rescue_estimate",
+                        "type": "collection",
+                        "label": "Hva konsernet må tilføre for å fjerne kapitalkriteriet (a)",
+                        "spec": [
+                            {"name": "konsernbidrag_min_nok", "type": "number", "label": "Minste konsernbidrag/tilskudd (NOK)"},
+                            {"name": "kapitalforhoyelse_min_nok", "type": "number", "label": "Minste kapitalforhøyelse (NOK)"},
+                            {"name": "frist", "type": "text", "label": "Frist (senest ved godkjenningstidspunktet for støtten)"}
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "_meta",
+            "type": "collection",
+            "label": "Aggregat",
+            "spec": [
+                {"name": "total_requested", "type": "number", "label": "Antall forespurt"},
+                {"name": "successful", "type": "number", "label": "Vellykket"},
+                {"name": "failed", "type": "number", "label": "Feilet"}
+            ]
+        }
+    ],
+    "samples": {
+        "results": [
+            {
+                "orgnr": "999999999",
+                "status": "not_distressed",
+                "score": 0,
+                "confidence": 1,
+                "company_status": "not_distressed",
+                "distress_basis": null,
+                "group_assessment": {
+                    "evaluated": false,
+                    "status": "unknown",
+                    "basis": "ingen_data",
+                    "root_orgnr": null,
+                    "root_name": null,
+                    "members_total": null,
+                    "members_evaluated": null,
+                    "members_distressed": [],
+                    "capital_loss_ratio": null,
+                    "truncated": false
+                },
+                "rescuable_by_group": false,
+                "rescue_estimate": null
+            },
+            {
+                "orgnr": "998877665",
+                "status": "distressed",
+                "score": 1,
+                "confidence": 1,
+                "company_status": "not_distressed",
+                "distress_basis": "group",
+                "group_assessment": {
+                    "evaluated": true,
+                    "status": "distressed",
+                    "basis": "aggregert_selskapsregnskap",
+                    "root_orgnr": "997766554",
+                    "root_name": "Eksempel Konsern AS",
+                    "members_total": 3,
+                    "members_evaluated": 3,
+                    "members_distressed": [
+                        {"orgnr": "997766554", "navn": "Eksempel Konsern AS", "triggers": ["accumulated_losses_over_50pct"]}
+                    ],
+                    "capital_loss_ratio": 0.62,
+                    "truncated": false
+                },
+                "rescuable_by_group": false,
+                "rescue_estimate": null
+            }
+        ],
+        "_meta": {"total_requested": 2, "successful": 2, "failed": 0}
+    }
+}

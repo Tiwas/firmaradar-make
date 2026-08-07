@@ -1,0 +1,55 @@
+{
+    "name": "watch_nace_changes",
+    "label": "Watch an industry (NACE)",
+    "description": "Instant trigger — fires when a company in the chosen NACE industry code changes (created, updated, deleted, status changed). Supports geographic and size filters. Registers a Firmaradar NACE subscription.",
+    "connection": "apiKey",
+    "type": "instant",
+    "webhook": "nace_changes",
+    "interface": [
+        {
+            "name": "event_type",
+            "type": "text",
+            "label": "Event type"
+        },
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisasjonsnummer"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Selskapsnavn"
+        },
+        {
+            "name": "nace_code",
+            "type": "text",
+            "label": "NACE-kode"
+        },
+        {
+            "name": "kommunenr",
+            "type": "text",
+            "label": "Kommunenummer"
+        },
+        {
+            "name": "announcement",
+            "type": "collection",
+            "label": "Kunngjøring (BRREG)",
+            "spec": []
+        },
+        {
+            "name": "delivered_via",
+            "type": "text",
+            "label": "Levert via"
+        }
+    ],
+    "samples": {
+        "event_type": "created",
+        "orgnr": "923609016",
+        "navn": "Eksempel AS",
+        "nace_code": "47.110",
+        "kommunenr": "0301",
+        "announcement": {},
+        "delivered_via": "nace_overvakning"
+    }
+}

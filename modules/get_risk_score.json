@@ -1,0 +1,71 @@
+{
+    "name": "get_risk_score",
+    "label": "Get risk score",
+    "description": "Get a transparent 0-100 risk score with level (lav/moderat/høy/kritisk) and a component breakdown (FIV status, financial trend, announcement signals). A decision-ready enrichment layer, not a raw registry lookup.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number. Note: risk scoring is a marketplace-gated feature. Until your account has it enabled you must first confirm the pre-screening disclaimer (POST /api/v1/risikoscoring/confirm-disclaimer), otherwise this action returns 403.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/risikoscoring/score/{{parameters.orgnr}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "score", "type": "uinteger", "label": "Risikoscore (0-100)"},
+        {"name": "level", "type": "text", "label": "Nivå (lav/moderat/høy/kritisk)"},
+        {
+            "name": "components",
+            "type": "array",
+            "label": "Komponenter",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "kode", "type": "text", "label": "Kode"},
+                    {"name": "tittel", "type": "text", "label": "Tittel"},
+                    {"name": "vekt", "type": "number", "label": "Vekt"},
+                    {"name": "verdi", "type": "number", "label": "Verdi"},
+                    {"name": "forklaring", "type": "text", "label": "Forklaring"}
+                ]
+            }
+        },
+        {
+            "name": "sources",
+            "type": "array",
+            "label": "Kilder",
+            "spec": {"type": "text"}
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "score": 42,
+        "level": "moderat",
+        "components": [
+            {"kode": "fiv_status", "tittel": "Foretak i vanskeligheter", "vekt": 0.4, "verdi": 0.0, "forklaring": "Ikke i vanskeligheter"},
+            {"kode": "regnskap_trend", "tittel": "Regnskapstrend", "vekt": 0.3, "verdi": 0.5, "forklaring": "Fallende driftsresultat siste 2 år"}
+        ],
+        "sources": ["fiv", "regnskap", "kunngjoringer"]
+    }
+}

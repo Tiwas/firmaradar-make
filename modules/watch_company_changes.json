@@ -1,0 +1,58 @@
+{
+    "name": "watch_company_changes",
+    "label": "Watch a company",
+    "description": "Instant trigger — fires when a monitored company gets an announcement, status change, ownership change or grant change. Registers a Firmaradar monitoring webhook for one organisation number.",
+    "connection": "apiKey",
+    "type": "instant",
+    "webhook": "company_changes",
+    "interface": [
+        {
+            "name": "event",
+            "type": "text",
+            "label": "Event"
+        },
+        {
+            "name": "generated_at",
+            "type": "date",
+            "label": "Generated at"
+        },
+        {
+            "name": "artifact_date",
+            "type": "text",
+            "label": "Artifact date (source)"
+        },
+        {
+            "name": "changes",
+            "type": "array",
+            "label": "Changes",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+                    {"name": "company_name", "type": "text", "label": "Selskapsnavn"},
+                    {"name": "change_type", "type": "text", "label": "Endringstype (ownership_change/grant_change/kunngjoring)"},
+                    {"name": "category", "type": "text", "label": "Kategori"},
+                    {"name": "description", "type": "text", "label": "Beskrivelse"},
+                    {"name": "previous_value", "type": "text", "label": "Forrige verdi"},
+                    {"name": "new_value", "type": "text", "label": "Ny verdi"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "event": "monitoring.changes_detected",
+        "generated_at": "2026-07-06T08:15:00Z",
+        "artifact_date": "2026-07-06",
+        "changes": [
+            {
+                "orgnr": "923609016",
+                "company_name": "Eksempel AS",
+                "change_type": "kunngjoring",
+                "category": "konkurs_tvangsavvikling",
+                "description": "Tvangsoppløsning varslet",
+                "previous_value": null,
+                "new_value": null
+            }
+        ]
+    }
+}

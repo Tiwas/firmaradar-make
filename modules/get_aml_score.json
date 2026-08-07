@@ -1,0 +1,72 @@
+{
+    "name": "get_aml_score",
+    "label": "Get AML score (deprecated — use Start AML report)",
+    "description": "DEPRECATED (2026-07-07): this call now only starts an asynchronous AML report and responds 202 with a report_id, status 'pending' and a canonical poll_url — it no longer returns a score/level in the same call. Kept for backward compatibility; new scenarios should use 'Start AML report (async)' followed by 'Get AML report (poll)' instead. Requires a signed DPA + per-call confirmation (sent as headers). Rate limit: 50 calls / 30 min. The report is stored for 60 months (Hvitvaskingsloven §35).",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "purpose",
+            "type": "select",
+            "label": "Purpose of screening",
+            "required": true,
+            "default": "kyc_onboarding",
+            "help": "Sent as the DPA purpose (X-FR-Purpose header). Used for the audit trail and rate-limiting policy.",
+            "options": [
+                {"label": "KYC onboarding (new customer)", "value": "kyc_onboarding"},
+                {"label": "KYC review (existing customer)", "value": "kyc_review"},
+                {"label": "Risk monitoring", "value": "risk_monitoring"},
+                {"label": "Manual request", "value": "manual"}
+            ]
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/aml/score",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-FR-Purpose": "{{parameters.purpose}}",
+            "X-FR-DPA-Confirmed": "true"
+        },
+        "body": {
+            "orgnr": "{{parameters.orgnr}}",
+            "purpose": "{{parameters.purpose}}"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "rapport_id", "type": "text", "label": "Rapport-/job-ID (poll denne)"},
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "status", "type": "text", "label": "Status (pending/running/done/failed)"},
+        {"name": "poll_url", "type": "text", "label": "Poll-URL (kanonisk — /api/v1/aml/report/<id>)"},
+        {"name": "deprecated", "type": "boolean", "label": "Utfaset (alltid true)"},
+        {"name": "message", "type": "text", "label": "Migreringsmelding"}
+    ],
+    "samples": {
+        "rapport_id": "0123456789abcdef0123456789abcdef",
+        "orgnr": "999999999",
+        "status": "pending",
+        "poll_url": "/api/v1/aml/report/0123456789abcdef0123456789abcdef",
+        "deprecated": true,
+        "message": "aml/score is deprecated: the call now starts an asynchronous AML report. Poll poll_url until status is done/failed, or use POST /api/v1/aml/report directly."
+    }
+}

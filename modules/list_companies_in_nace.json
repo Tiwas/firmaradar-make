@@ -1,0 +1,92 @@
+{
+    "name": "list_companies_in_nace",
+    "label": "List companies in NACE industry",
+    "description": "List Norwegian companies in a NACE industry code (or prefix), optionally filtered by status, municipality and minimum employees. For prospecting and segmenting a pipeline by industry.",
+    "connection": "apiKey",
+    "type": "search",
+    "parameters": [
+        {
+            "name": "code",
+            "type": "text",
+            "label": "NACE code or prefix",
+            "required": true,
+            "help": "NACE code or prefix, e.g. '47' (retail) or '47.11' (grocery retail)."
+        },
+        {
+            "name": "status",
+            "type": "select",
+            "label": "Status",
+            "options": [
+                {"label": "Active", "value": "aktiv"},
+                {"label": "Bankrupt", "value": "konkurs"},
+                {"label": "Under dissolution", "value": "under_avvikling"},
+                {"label": "Deregistered", "value": "avregistrert"}
+            ],
+            "help": "Optional company-status filter."
+        },
+        {
+            "name": "kommune",
+            "type": "text",
+            "label": "Municipality number",
+            "help": "Optional 4-digit municipality number filter."
+        },
+        {
+            "name": "min_ansatte",
+            "type": "uinteger",
+            "label": "Minimum employees",
+            "help": "Optional lower bound on the registered number of employees."
+        },
+        {
+            "name": "limit",
+            "type": "uinteger",
+            "label": "Max results",
+            "default": 50,
+            "validate": {"min": 1, "max": 200},
+            "help": "Maximum number of companies to return per call (1-200)."
+        },
+        {
+            "name": "cursor",
+            "type": "text",
+            "label": "Cursor",
+            "help": "Pagination cursor from a previous call's next_cursor."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/nace/{{parameters.code}}/companies",
+        "method": "GET",
+        "qs": {
+            "status": "{{parameters.status}}",
+            "kommune": "{{parameters.kommune}}",
+            "min_ansatte": "{{parameters.min_ansatte}}",
+            "limit": "{{parameters.limit}}",
+            "cursor": "{{parameters.cursor}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body.items}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisation number"},
+        {"name": "navn", "type": "text", "label": "Company name"},
+        {"name": "naeringskode", "type": "text", "label": "NACE code"},
+        {"name": "antall_ansatte", "type": "uinteger", "label": "Employees"},
+        {"name": "kommune", "type": "text", "label": "Municipality"},
+        {"name": "status", "type": "text", "label": "Status"}
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "navn": "EKSEMPEL HANDEL AS",
+        "naeringskode": "47.111",
+        "antall_ansatte": 12,
+        "kommune": "0301",
+        "status": "aktiv"
+    }
+}

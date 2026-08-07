@@ -1,0 +1,82 @@
+{
+    "name": "get_konsernstotte",
+    "label": "Get group public support",
+    "description": "Get an overview of public support (grants) received through the corporate group: direct support to the company (selskap_stotte) and support aggregated upward through the ownership tree (konsern_aggregat). Fuses NAV grants, corona support, the BRREG support register, Innovasjon Norge and SkatteFUNN into one decision-ready view.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/konsernstotte/oversikt/{{parameters.orgnr}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {
+            "name": "selskap_stotte",
+            "type": "collection",
+            "label": "Direkte støtte (selskap)",
+            "spec": [
+                {"name": "sum_nok", "type": "number", "label": "Sum støtte (NOK)"},
+                {"name": "antall", "type": "uinteger", "label": "Antall tildelinger"}
+            ]
+        },
+        {
+            "name": "konsern_aggregat",
+            "type": "collection",
+            "label": "Aggregert konsern-støtte",
+            "spec": [
+                {"name": "sum_nok", "type": "number", "label": "Sum støtte konsern (NOK)"},
+                {"name": "antall", "type": "uinteger", "label": "Antall tildelinger konsern"},
+                {"name": "antall_selskaper", "type": "uinteger", "label": "Antall selskaper med støtte"}
+            ]
+        },
+        {
+            "name": "tildelinger",
+            "type": "array",
+            "label": "Tildelinger",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Mottaker (orgnr)"},
+                    {"name": "navn", "type": "text", "label": "Mottaker (navn)"},
+                    {"name": "kilde", "type": "text", "label": "Kilde"},
+                    {"name": "ordning", "type": "text", "label": "Ordning"},
+                    {"name": "belop_nok", "type": "number", "label": "Beløp (NOK)"},
+                    {"name": "aar", "type": "uinteger", "label": "År"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "selskap_stotte": {"sum_nok": 1250000, "antall": 3},
+        "konsern_aggregat": {"sum_nok": 4800000, "antall": 11, "antall_selskaper": 4},
+        "tildelinger": [
+            {"orgnr": "999999999", "navn": "Eksempel AS", "kilde": "Innovasjon Norge", "ordning": "Innovasjonstilskudd", "belop_nok": 900000, "aar": 2025},
+            {"orgnr": "999999999", "navn": "Eksempel AS", "kilde": "SkatteFUNN", "ordning": "SkatteFUNN", "belop_nok": 350000, "aar": 2024}
+        ]
+    }
+}

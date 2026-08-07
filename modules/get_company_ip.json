@@ -18,11 +18,8 @@
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}",
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/ip",
         "method": "GET",
-        "qs": {
-            "ip": "1"
-        },
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",
             "X-FR-Client": "make-firmaradar/0.1",

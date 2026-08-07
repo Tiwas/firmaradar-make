@@ -1,0 +1,103 @@
+{
+    "name": "get_regnskapsrapport",
+    "label": "Get financial report (Excel/PDF)",
+    "description": "Order a fully formatted financial report — Excel or PDF, ready to file or forward — built by the same report engine as the portal export. Unlike Get financials, which returns raw figures for you to compute on, this delivers a finished, presentation-ready document: the response is metadata plus a short-lived (~15 min), signed download URL, never the file itself inline. Requires the Excel-export add-on (xlsx) or PDF-export add-on (pdf) matching the requested format, enabled on your account — otherwise this action returns 403. Covers up to 5 financial years; billed 1 credit per financial year included in the report.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "format",
+            "type": "select",
+            "label": "Format",
+            "required": true,
+            "default": "pdf",
+            "options": [
+                {"label": "PDF", "value": "pdf"},
+                {"label": "Excel (xlsx)", "value": "xlsx"}
+            ],
+            "help": "PDF requires the print_til_pdf add-on; Excel requires the excel_feed add-on. Returns 403 if the matching add-on is not enabled on your account."
+        },
+        {
+            "name": "regnskapstype",
+            "type": "select",
+            "label": "Report basis",
+            "required": true,
+            "default": "SELSKAP",
+            "options": [
+                {"label": "Company (SELSKAP)", "value": "SELSKAP"},
+                {"label": "Group (KONSERN)", "value": "KONSERN"}
+            ]
+        },
+        {
+            "name": "years",
+            "type": "uinteger",
+            "label": "Years",
+            "default": 5,
+            "validate": {
+                "min": 1,
+                "max": 5
+            },
+            "help": "Number of financial years to include in the report (1-5, default 5). Billed 1 credit per year included."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/regnskapsrapport/{{parameters.orgnr}}",
+        "method": "GET",
+        "qs": {
+            "format": "{{parameters.format}}",
+            "regnskapstype": "{{parameters.regnskapstype}}",
+            "years": "{{parameters.years}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "regnskapstype", "type": "text", "label": "Regnskapstype (SELSKAP/KONSERN)"},
+        {"name": "format", "type": "text", "label": "Format (xlsx/pdf)"},
+        {"name": "antall_aar", "type": "uinteger", "label": "Antall regnskapsår faktisk levert"},
+        {"name": "maks_aar", "type": "uinteger", "label": "Maks antall regnskapsår (5)"},
+        {
+            "name": "aar",
+            "type": "array",
+            "label": "Årene som inngår (nyeste først)",
+            "spec": {"type": "uinteger"}
+        },
+        {"name": "kilde", "type": "text", "label": "Kilde-etikett vist i rapporten"},
+        {"name": "valuta", "type": "text", "label": "Valuta"},
+        {"name": "download_url", "type": "text", "label": "Nedlastings-URL (signert, kortlevd)"},
+        {"name": "expires_in", "type": "uinteger", "label": "Sekunder til download_url utløper"}
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "regnskapstype": "SELSKAP",
+        "format": "pdf",
+        "antall_aar": 5,
+        "maks_aar": 5,
+        "aar": [2025, 2024, 2023, 2022, 2021],
+        "kilde": "Regnskapsregisteret",
+        "valuta": "NOK",
+        "download_url": "https://firmaradar.no/dl/regnskapsrapport/a1b2c3d4.pdf?sig=example",
+        "expires_in": 900
+    }
+}

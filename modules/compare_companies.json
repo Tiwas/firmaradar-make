@@ -1,0 +1,72 @@
+{
+    "name": "compare_companies",
+    "label": "Compare companies",
+    "description": "Server-side comparison of the accounting history of 1-5 companies over N years — revenue, result, equity and other key figures side by side.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnrs",
+            "type": "array",
+            "label": "Organisation numbers (max 5)",
+            "required": true,
+            "help": "1-5 nine-digit Norwegian organisation numbers to compare.",
+            "spec": {
+                "name": "orgnr",
+                "type": "text",
+                "label": "Organisation number",
+                "validate": {
+                    "pattern": "^[0-9]{9}$",
+                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                }
+            }
+        },
+        {
+            "name": "years",
+            "type": "uinteger",
+            "label": "Years",
+            "default": 5,
+            "validate": {"min": 1, "max": 10},
+            "help": "Number of accounting years to compare (1-10, default 5)."
+        },
+        {
+            "name": "metrics",
+            "type": "array",
+            "label": "Metrics",
+            "help": "Optional subset of key figures to include. Leave empty for the default set.",
+            "spec": {
+                "name": "metric",
+                "type": "text",
+                "label": "Metric"
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/companies/compare",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "orgnrs": "{{parameters.orgnrs}}",
+            "years": "{{parameters.years}}",
+            "metrics": "{{parameters.metrics}}"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "samples": {
+        "orgnrs": ["923609016", "811912672"],
+        "years": 5,
+        "companies": [
+            {"orgnr": "923609016", "navn": "EKSEMPEL AS", "years": {}}
+        ]
+    }
+}

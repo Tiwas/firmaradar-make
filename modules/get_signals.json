@@ -1,0 +1,111 @@
+{
+    "name": "get_signals",
+    "label": "Get risk signals",
+    "description": "Get aggregated decision-ready risk signals for a company in one call: KYC announcement signals (bankruptcy, merger, board changes), distress classification (FIV) and interim-balance status, plus a rolled-up aggregate. Firmaradar fuses these sources so you get a single risk view, not raw registry events.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "since",
+            "type": "date",
+            "label": "Signals since (date)",
+            "help": "Optional ISO date (YYYY-MM-DD). Overrides the default 730-day look-back. Capped at 1825 days back."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/signals",
+        "method": "GET",
+        "qs": {
+            "since": "{{formatDate(parameters.since, 'YYYY-MM-DD')}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "days_back", "type": "uinteger", "label": "Vindu (dager bakover)"},
+        {
+            "name": "kyc_signals",
+            "type": "collection",
+            "label": "KYC-signaler (kunngjøringer)",
+            "spec": [
+                {"name": "count", "type": "uinteger", "label": "Antall signaler"},
+                {
+                    "name": "signals",
+                    "type": "array",
+                    "label": "Signaler",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {"name": "dato", "type": "date", "label": "Dato"},
+                            {"name": "type", "type": "text", "label": "Type"},
+                            {"name": "kategori", "type": "text", "label": "Kategori"},
+                            {"name": "beskrivelse", "type": "text", "label": "Beskrivelse"}
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "distress",
+            "type": "collection",
+            "label": "Distress-klassifisering (FIV)",
+            "spec": [
+                {"name": "status", "type": "text", "label": "Status"},
+                {"name": "score", "type": "number", "label": "Score"},
+                {"name": "as_of", "type": "date", "label": "Vurdert per"}
+            ]
+        },
+        {
+            "name": "interim_balance",
+            "type": "collection",
+            "label": "Mellombalanse",
+            "spec": [
+                {"name": "has_interim_balance", "type": "boolean", "label": "Har mellombalanse"},
+                {"name": "dato", "type": "date", "label": "Dato"}
+            ]
+        },
+        {
+            "name": "aggregate",
+            "type": "collection",
+            "label": "Aggregert risiko",
+            "spec": [
+                {"name": "risk_level", "type": "text", "label": "Risikonivå"},
+                {"name": "signal_count", "type": "uinteger", "label": "Antall signaler totalt"}
+            ]
+        }
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "days_back": 730,
+        "kyc_signals": {
+            "count": 1,
+            "signals": [
+                {"dato": "2026-05-12", "type": "tvangsopplosning_varslet", "kategori": "konkurs", "beskrivelse": "Tvangsoppløsning varslet"}
+            ]
+        },
+        "distress": {"status": "not_distressed", "score": 0.12, "as_of": "2026-04-30"},
+        "interim_balance": {"has_interim_balance": false, "dato": null},
+        "aggregate": {"risk_level": "lav", "signal_count": 1}
+    }
+}

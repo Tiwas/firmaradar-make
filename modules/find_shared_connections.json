@@ -1,0 +1,42 @@
+{
+    "name": "find_shared_connections",
+    "label": "Find shared connections",
+    "description": "Analyse two or more companies and return the people, owners and addresses they have in common (link/koblingsanalyse). Useful for detecting hidden relationships across a set of counterparties.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnrs",
+            "type": "text",
+            "label": "Organisation numbers",
+            "required": true,
+            "help": "Comma-separated list of at least 2 nine-digit organisation numbers (e.g. 923609016,811912672)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/find-shared-connections",
+        "method": "GET",
+        "qs": {
+            "orgnrs": "{{parameters.orgnrs}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "samples": {
+        "orgnrs": ["923609016", "811912672"],
+        "shared": {
+            "persons": [{"navn": "Ola Nordmann", "companies": ["923609016", "811912672"]}],
+            "owners": [],
+            "addresses": []
+        }
+    }
+}

@@ -1,0 +1,92 @@
+{
+    "name": "get_risk_score_bulk",
+    "label": "Bulk: risk score",
+    "description": "Portfolio risk-scoring (0-100 + level lav/moderat/høy/kritisk + component breakdown) for up to 50 companies in one call. Each orgnr is scored independently; per-orgnr compliance-gates (ENK/NUF block, customer-confirmation required, extension disabled) are returned as a per-orgnr error instead of failing the whole batch. Each orgnr counts as one unit against your quota.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnrs",
+            "type": "array",
+            "label": "Organisation numbers (max 50)",
+            "required": true,
+            "help": "1-50 nine-digit Norwegian organisation numbers. Each orgnr counts as one unit against your quota.",
+            "spec": {
+                "name": "orgnr",
+                "type": "text",
+                "label": "Organisation number",
+                "validate": {
+                    "pattern": "^[0-9]{9}$",
+                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                }
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/risikoscoring/score/bulk",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "orgnrs": "{{parameters.orgnrs}}"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "results",
+            "type": "array",
+            "label": "Per-company results",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+                    {"name": "score", "type": "number", "label": "Score (0-100)"},
+                    {"name": "risk_level", "type": "text", "label": "Nivå (lav/moderat/høy/kritisk)"},
+                    {"name": "error", "type": "text", "label": "Per-orgnr feil (hvis noen)"},
+                    {
+                        "name": "components",
+                        "type": "array",
+                        "label": "Komponenter",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {"name": "id", "type": "text", "label": "Komponent-ID"},
+                                {"name": "label", "type": "text", "label": "Etikett"},
+                                {"name": "points", "type": "number", "label": "Poeng"},
+                                {"name": "max", "type": "number", "label": "Maks"},
+                                {"name": "status", "type": "text", "label": "Status"}
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "_meta",
+            "type": "collection",
+            "label": "Aggregat",
+            "spec": [
+                {"name": "total_requested", "type": "number", "label": "Antall forespurt"},
+                {"name": "successful", "type": "number", "label": "Vellykket"},
+                {"name": "failed", "type": "number", "label": "Feilet"}
+            ]
+        }
+    ],
+    "samples": {
+        "results": [
+            {"orgnr": "999999999", "score": 22, "risk_level": "lav", "components": []},
+            {"orgnr": "998877665", "score": 71, "risk_level": "høy", "components": []}
+        ],
+        "_meta": {"total_requested": 2, "successful": 2, "failed": 0}
+    }
+}

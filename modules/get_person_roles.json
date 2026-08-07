@@ -1,0 +1,62 @@
+{
+    "name": "get_person_roles",
+    "label": "Get person roles",
+    "description": "Get the complete role history (active and historic) that a person has held across companies — board, CEO, signatory, proxy, auditor. Uses the stable role-person ID from 'Search persons'. Requires full-search access. Birth year is masked to a 4-digit year.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "role_person_id",
+            "type": "text",
+            "label": "Role-person ID",
+            "required": true,
+            "help": "Stable role-person key returned by 'Search persons'."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/person/roles/{{parameters.role_person_id}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "role_person_id", "type": "text", "label": "Rolle-person-ID"},
+        {"name": "name", "type": "text", "label": "Navn"},
+        {"name": "birth_year", "type": "text", "label": "Fødselsår (maskert)"},
+        {
+            "name": "roles",
+            "type": "array",
+            "label": "Roller",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "rolle_type", "type": "text", "label": "Rolletype"},
+                    {"name": "orgnr", "type": "text", "label": "Selskap (orgnr)"},
+                    {"name": "navn", "type": "text", "label": "Selskapsnavn"},
+                    {"name": "fra_dato", "type": "date", "label": "Fra dato"},
+                    {"name": "til_dato", "type": "date", "label": "Til dato"},
+                    {"name": "signatur_alene", "type": "boolean", "label": "Signatur alene"},
+                    {"name": "is_active", "type": "boolean", "label": "Aktiv"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "role_person_id": "rpi-demo-ola-nordmann",
+        "name": "Ola Nordmann",
+        "birth_year": "1975",
+        "roles": [
+            {"rolle_type": "Styreleder", "orgnr": "999999999", "navn": "Eksempel AS", "fra_dato": "2018-03-01", "til_dato": null, "signatur_alene": true, "is_active": true},
+            {"rolle_type": "Daglig leder", "orgnr": "888888888", "navn": "Tidligere AS", "fra_dato": "2012-01-01", "til_dato": "2017-12-31", "signatur_alene": false, "is_active": false}
+        ]
+    }
+}

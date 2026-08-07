@@ -1,0 +1,73 @@
+{
+    "name": "search_persons",
+    "label": "Search persons",
+    "description": "Search person shareholders and role holders by name, with fuzzy matching (initial expansion, middle-name dropping). Returns two result sets — shareholders and role persons — each with a stable key you can feed into 'Get person roles' or 'Get person companies'. Requires full-search access; minors are filtered out. Birth year is masked to a 4-digit year.",
+    "connection": "apiKey",
+    "type": "search",
+    "parameters": [
+        {
+            "name": "q",
+            "type": "text",
+            "label": "Name",
+            "required": true,
+            "help": "Person name (minimum 2 characters). Fuzzy matched.",
+            "validate": {
+                "min": 2
+            }
+        },
+        {
+            "name": "limit",
+            "type": "uinteger",
+            "label": "Max results",
+            "default": 30,
+            "validate": {
+                "min": 1,
+                "max": 100
+            },
+            "help": "Maximum number of matches per result set (1-100)."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/person/search",
+        "method": "GET",
+        "qs": {
+            "q": "{{parameters.q}}",
+            "limit": "{{parameters.limit}}"
+        },
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "iterate": "{{merge(body.shareholders, body.role_persons)}}",
+            "output": {
+                "name": "{{item.name}}",
+                "birth_year": "{{item.birth_year}}",
+                "owner_person_key": "{{item.owner_person_key}}",
+                "role_person_id": "{{item.role_person_id}}",
+                "poststed": "{{item.poststed}}",
+                "antall_selskaper": "{{item.antall_selskaper}}"
+            },
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "name", "type": "text", "label": "Navn"},
+        {"name": "birth_year", "type": "text", "label": "Fødselsår (maskert)"},
+        {"name": "owner_person_key", "type": "text", "label": "Eier-person-nøkkel (for aksjebeholdninger)"},
+        {"name": "role_person_id", "type": "text", "label": "Rolle-person-ID (for roller)"},
+        {"name": "poststed", "type": "text", "label": "Poststed"},
+        {"name": "antall_selskaper", "type": "uinteger", "label": "Antall selskaper"}
+    ],
+    "samples": {
+        "name": "Ola Nordmann",
+        "birth_year": "1975",
+        "owner_person_key": "opk-demo-ola-nordmann",
+        "role_person_id": "rpi-demo-ola-nordmann",
+        "poststed": "Oslo",
+        "antall_selskaper": 4
+    }
+}

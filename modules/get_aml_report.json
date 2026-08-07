@@ -1,0 +1,56 @@
+{
+    "name": "get_aml_report",
+    "label": "Get AML report (poll)",
+    "description": "Poll the status and result of an asynchronous AML report started with 'Start AML report'. Pass the report_id; returns status (pending/running/done/failed). When 'done' it includes the AML risk score (0-100), level (low/medium/high) and links to the stored report; when 'failed' it includes the error reason. Chain this after 'Start AML report' in a scenario (add a delay/repeater until status is done or failed).",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "report_id",
+            "type": "text",
+            "label": "Report ID",
+            "required": true,
+            "help": "The report_id returned by 'Start AML report'.",
+            "validate": {
+                "pattern": "^[0-9a-f]{32}$",
+                "patternErrorMessage": "Report ID must be a 32-character hex job id."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/aml/report/{{parameters.report_id}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "rapport_id", "type": "text", "label": "Job-ID"},
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "status", "type": "text", "label": "Status (pending/running/done/failed)"},
+        {"name": "report_id", "type": "text", "label": "Ferdig rapport-ID (når done)"},
+        {"name": "score", "type": "number", "label": "AML-score 0-100 (når done)"},
+        {"name": "level", "type": "text", "label": "Nivå low/medium/high (når done)"},
+        {"name": "error", "type": "text", "label": "Feilårsak (når failed)"},
+        {"name": "json_url", "type": "text", "label": "Rapport-JSON (når done)"},
+        {"name": "pdf_url", "type": "text", "label": "Rapport-PDF (når done)"}
+    ],
+    "samples": {
+        "rapport_id": "0123456789abcdef0123456789abcdef",
+        "orgnr": "999999999",
+        "status": "done",
+        "report_id": "fedcba9876543210fedcba9876543210",
+        "score": 34,
+        "level": "medium",
+        "json_url": "/ext/aml_rapport/rapport/fedcba9876543210fedcba9876543210",
+        "pdf_url": "/ext/aml_rapport/rapport/fedcba9876543210fedcba9876543210/pdf"
+    }
+}

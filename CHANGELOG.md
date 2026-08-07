@@ -6,6 +6,93 @@ Formatet følger [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) og pro
 
 ---
 
+## [Unreleased]
+
+### Added
+- **FIV-konsernvurdering (to-nivå-test).** `check_fiv` og `check_fiv_bulk`
+  vurderer nå både selskaps- og konsernleddet, jf. GBER art. 2(18)
+  (EU-forordning 651/2014). Nye felter i responsen: `company_status`
+  (selskaps-leddet alene), `distress_basis` (`company`/`group`/
+  `company_and_group`, null hvis ikke FIV), `group_assessment` (konsernets
+  status/basis/medlemmer — `FivGroupAssessment`), `rescuable_by_group`
+  (boolean) og `rescue_estimate` (hva konsernet må tilføre — nullable
+  `FivRescueEstimate`). Kundevendt status kan nå bli **«Ja (konsern)»**
+  (rødt, kun konsern-leddet trigget), **«Ja (!)»** (oransje, selskapet var
+  allerede rødt men konsernet er verifisert friskt og kan reparere) eller
+  **«Tvil»** (konsern-leddet kan ikke fastslås).
+- **`get_regnskapsrapport`** («Get financial report (Excel/PDF)») — ny
+  modul. Bestiller en ferdig formatert regnskapsrapport (Excel eller PDF)
+  — til forskjell fra `get_financials`, som gir rå tall for egen
+  beregning. `GET /api/v1/regnskapsrapport/{orgnr}` med `format`
+  (xlsx/pdf), `regnskapstype` (SELSKAP/KONSERN) og `years` (1-5, default
+  5). Svarer med metadata + et kortlevd (15 min), signert
+  nedlastings-URL — filen leveres aldri inline i responsen. Krever
+  `excel_feed`-tilgang (xlsx) eller `print_til_pdf`-tilgang (pdf) på
+  kontoen, ellers `403`. Koster 1 kreditt per levert regnskapsår.
+- **Terminologi-retting: NUES → GBER art. 2(18).** `check_fiv`- og
+  `check_fiv_bulk`-modulenes `description`-felt og README.md refererte
+  tidligere til «NUES a-e-reglene» — «NUES» er ikke en reell EU-forkortelse
+  for dette regelverket. Rettet til korrekt referanse: EU-forordning
+  651/2014 (gruppeunntaksforordningen/GBER) art. 2(18), kriteriene (a)-(e).
+  Kriterie-betegnelsen «a-e» er uendret — det var kun «NUES»-navnet på selve
+  regelverket som var feil. Se `docs/juridisk/FIV_METHODOLOGY.md` for
+  autoritativ metodikk.
+- **Instant triggers (webhook-baserte).** Første triggere i appen — starter et
+  scenario når noe skjer, i stedet for å polle:
+  - `watch_company_changes` («Watch a company») + webhook `company_changes` —
+    varsel ved kunngjøring, status-, eier- eller tilskuddsendring for ett orgnr
+    (`POST /api/v1/monitoring/webhooks`).
+  - `watch_nace_changes` («Watch an industry (NACE)») + webhook `nace_changes` —
+    varsel når et selskap i en NACE-kode endrer seg, med hendelsestype-, geo-
+    (fylke/kommune) og størrelses-filtre (`POST /api/v1/nace/subscriptions`).
+
+  Webhookene `attach`-er scenariets Make-webhook-URL som callback ved oppretting
+  og `detach`-er (DELETE) ved fjerning. Valgfri leverings-hemmelighet sendes som
+  `Authorization: Bearer` — og verifiseres på mottak: webhook-kommunikasjonens
+  `condition` ignorerer leveranser som mangler eller har feil hemmelighet.
+  (NACE-leveranser kan i tillegg bære en `X-Firmaradar-Signature`-HMAC når
+  abonnementet har signing secret, men Make-webhooks har ikke tilgang til rå
+  request-body i IML og kan derfor ikke verifisere body-signaturer — bruk
+  leverings-hemmeligheten på denne flaten.)
+- **7 nye moduler** — den analytiske KYC- og risiko-kjernen, slik at Make-flaten
+  dekker samme operasjoner som MCP-serveren og n8n-pakken:
+  - `get_signals` — «Get risk signals»: aggregerte risiko-signaler (KYC-kunngjøringer
+    + distress/FIV + mellombalanse) i ett kall. `GET /api/v1/company/{orgnr}/signals`,
+    valgfri `since`-dato.
+  - `get_risk_score` — «Get risk score»: transparent 0-100-score med nivå og
+    komponent-breakdown. `GET /api/v1/risikoscoring/score/{orgnr}`. Markedsplass-gated:
+    krever aktivert risikoscoring + bekreftet pre-screening-disclaimer, ellers 403.
+  - `check_fiv` — «Check company in difficulty (FIV)»: GBER art. 2(18) a-e-vurdering.
+    `GET /api/v1/fiv/assess/{orgnr}`.
+  - `search_persons` — «Search persons»: fuzzy navne-søk mot aksjonærer og
+    rolleholdere. `GET /api/v1/person/search`. Returnerer stabile nøkler
+    (`owner_person_key`, `role_person_id`).
+  - `get_person_roles` — «Get person roles»: full rolle-historikk på tvers av
+    selskap. `GET /api/v1/person/roles/{role_person_id}`.
+  - `get_person_companies` — «Get person shareholdings»: aksjebeholdninger +
+    total eierverdi. `GET /api/v1/person/shareholdings/{owner_person_key}`.
+  - `get_konsernstotte` — «Get group public support»: direkte + konsern-aggregert
+    offentlig støtte. `GET /api/v1/konsernstotte/oversikt/{orgnr}`.
+- **Batch-agentiske moduler** — eksponerer de samme mønstrene som MCP-serveren
+  og n8n-pakken:
+  - `check_fiv_bulk` (**Bulk: distress check (FIV)**) — foretak-i-vanskeligheter
+    for opptil 50 orgnr i ett kall. Per-orgnr compliance-gate returneres som
+    per-orgnr `error`; 1 enhet/orgnr mot kvoten.
+  - `get_risk_score_bulk` (**Bulk: risk score**) — risikoscore (0-100 + nivå +
+    komponenter) for opptil 50 orgnr i ett kall.
+  - `start_aml_report` (**Start AML report (async)**) — starter AML-rapport i
+    bakgrunnen (submit → `rapport_id` + status «pending», HTTP 202). Sender
+    DPA-headers (`X-FR-Purpose` + `X-FR-DPA-Confirmed: true`). Rate-limit
+    50 kall / 30 min; rapport lagres i 60 mnd (Hvitvaskingsloven §35).
+  - `get_aml_report` (**Get AML report (poll)**) — poller async-rapport-status
+    til `done`/`failed`; score/level/lenker når ferdig.
+
+  Totalt 19 action/search-moduler (8 → 19) + 2 instant-triggere.
+
+### Changed
+- «Get IP portfolio» bruker nå det dedikerte `/api/v1/company/{orgnr}/ip`-endepunktet
+  (renere enn `?ip=1`). Uendret utdata (`ip_rettigheter`).
+
 ## [0.1.0] — 2026-05-27
 
 Første offentlige release.
@@ -32,7 +119,7 @@ Første offentlige release.
 
 - Logo-filene leveres av Marius og er ennå ikke inkludert i `icon`-feltet i `app.json` (plassholder-referanse til `icon.png`).
 - Make.com developer-konto og privat-app-skall opprettes manuelt før submission til den offentlige katalogen.
-- Modulene `get_announcements`, `get_signals`, `search_persons`, `compare_companies`, `list_companies_in_nace`, `get_aml_score`, `check_fiv`, `list_konsernstotte` og `get_skattelister` er planlagt for 0.2 og 0.3.
+- Modulene `get_signals`, `search_persons`, `get_person_roles`, `get_person_companies`, `check_fiv`, `get_risk_score` og `get_konsernstotte` er planlagt for senere versjoner (levert i [Unreleased]). `get_announcements`, `search_announcements`, `compare_companies`, `list_companies_in_nace`, `find_related_companies`, `find_shared_connections` og `get_aml_score` gjenstår.
 
 ---
 
@@ -47,13 +134,23 @@ Første offentlige release.
 
 ### [0.2.0]
 
-- Legg til moduler: `get_announcements`, `get_signals`, `search_persons`, `search_persons` med fødselsår-filter, `compare_companies`, `list_companies_in_nace`.
+- 6 moduler lagt i kilde (`modules/`) OG pushet live til Custom App
+  `firmaradar-p9vj9v` 07-09 via `scripts/make_sdk_push.py` (Make Apps SDK-API):
+  `get_announcements`, `search_announcements`, `compare_companies`,
+  `list_companies_in_nace`, `find_related_companies`, `find_shared_connections`
+  (live-navn i camelCase: `getAnnouncements` osv.). Appen har nå 25 moduler.
+- `icon.png` lagt til (200x200 transparent PNG, nedskalert brand-mark).
+- `get_aml_score` («Get AML score») lagt til i kilde (`modules/`) — mirrorer
+  live-modulen `getAmlScore` (`POST /api/v1/aml/score`). Endepunktet er
+  deprecert (Lars-vedtak 2026-07-07, kostnadsmatrise §4.6 + pen-test B1) og
+  svarer `202` med samme payload-form som «Start AML report» (`rapport_id`,
+  `orgnr`, `status`, kanonisk `poll_url` mot `/api/v1/aml/report/<id>`), pluss
+  `deprecated: true` + migreringsmelding. Modulen dekker bakoverkompatibilitet;
+  «Start AML report» + «Get AML report» er den anbefalte flyten for nye
+  scenarier. **Ikke pushet live** — appen er i markedsplass-review.
 - Triggere: `new_announcement`, `ownership_change`, `konkurs_signal_increased`.
 - Flere mal-scenarier: `konkurs-overvakning.json`, `konsern-due-diligence.json`.
 
 ### [0.3.0]
 
-- AML-score-modul (`get_aml_score`).
-- Foretak-i-vanskeligheter-modul (`check_fiv`).
-- Offentlige data: `list_konsernstotte`, `get_skattelister`.
 - OAuth 2.0-alternativ til API-key-auth (når 0.6 Remote MCP / hosted OAuth2-server er deployet).

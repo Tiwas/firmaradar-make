@@ -13,7 +13,7 @@
     "documentationUrl": "https://firmaradar.no/dokumentasjon",
     "supportUrl": "https://firmaradar.no/kontakt",
     "icon": {
-        "comment": "Logo-filer leveres av Marius. Plassholder-referanse — erstatt med faktisk icon.png (200x200 transparent PNG) før submission.",
+        "comment": "icon.png er 200x200 transparent PNG (nedskalert fra brand-marken logo/icon.png). Kan erstattes av offisiell logo-fil fra Marius før katalog-sertifisering.",
         "filename": "icon.png"
     },
     "base": {

@@ -1,0 +1,64 @@
+{
+    "name": "get_person_companies",
+    "label": "Get person shareholdings",
+    "description": "Get every company a person owns shares in, with ownership percentages and share values, plus the total ownership value in NOK. Uses the stable owner-person key from 'Search persons'. Requires full-search access. Birth year is masked to a 4-digit year.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "owner_person_key",
+            "type": "text",
+            "label": "Owner-person key",
+            "required": true,
+            "help": "Stable owner-person key returned by 'Search persons'."
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/person/shareholdings/{{parameters.owner_person_key}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "owner_person_key", "type": "text", "label": "Eier-person-nøkkel"},
+        {"name": "name", "type": "text", "label": "Navn"},
+        {"name": "birth_year", "type": "text", "label": "Fødselsår (maskert)"},
+        {"name": "poststed", "type": "text", "label": "Poststed"},
+        {"name": "total_ownership_value_nok", "type": "number", "label": "Total eierverdi (NOK)"},
+        {
+            "name": "shareholdings",
+            "type": "array",
+            "label": "Aksjebeholdninger",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Selskap (orgnr)"},
+                    {"name": "navn", "type": "text", "label": "Selskapsnavn"},
+                    {"name": "eierandel_prosent", "type": "number", "label": "Eierandel (%)"},
+                    {"name": "antall_aksjer", "type": "number", "label": "Antall aksjer"},
+                    {"name": "verdi_nok", "type": "number", "label": "Verdi (NOK)"}
+                ]
+            }
+        }
+    ],
+    "samples": {
+        "owner_person_key": "opk-demo-ola-nordmann",
+        "name": "Ola Nordmann",
+        "birth_year": "1975",
+        "poststed": "Oslo",
+        "total_ownership_value_nok": 12500000,
+        "shareholdings": [
+            {"orgnr": "999999999", "navn": "Eksempel AS", "eierandel_prosent": 55.0, "antall_aksjer": 5500, "verdi_nok": 9000000},
+            {"orgnr": "888888888", "navn": "Holding AS", "eierandel_prosent": 100.0, "antall_aksjer": 100, "verdi_nok": 3500000}
+        ]
+    }
+}

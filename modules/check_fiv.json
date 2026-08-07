@@ -1,0 +1,129 @@
+{
+    "name": "check_fiv",
+    "label": "Check company in difficulty (FIV)",
+    "description": "Assess whether a company is 'foretak i vanskeligheter' (company in difficulty) under the EU state-aid rules on companies in difficulty (GBER art. 2(18), criteria a-e), based on the latest available financials with an interim-balance overlay. Assessed at two levels — company and group — per GBER art. 2(18): a company with clean own accounts is still distressed when its group is. A deterministic, statutory distress classification — one of Firmaradar's proprietary enrichment layers.",
+    "connection": "apiKey",
+    "type": "action",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        }
+    ],
+    "communication": {
+        "url": "{{connection.baseUrl}}/api/v1/fiv/assess/{{parameters.orgnr}}",
+        "method": "GET",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        },
+        "response": {
+            "output": "{{body}}",
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "interface": [
+        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
+        {"name": "status", "type": "text", "label": "Status (not_distressed/distressed) — reflekterer begge nivåer"},
+        {"name": "company_status", "type": "text", "label": "Selskaps-leddet alene (før konsern-leddet)"},
+        {"name": "score", "type": "number", "label": "Score"},
+        {"name": "confidence", "type": "number", "label": "Konfidens"},
+        {
+            "name": "rules_fired",
+            "type": "array",
+            "label": "Utløste regler (a-e)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "rule", "type": "text", "label": "Regel"},
+                    {"name": "fired", "type": "boolean", "label": "Utløst"},
+                    {"name": "forklaring", "type": "text", "label": "Forklaring"}
+                ]
+            }
+        },
+        {"name": "distress_basis", "type": "text", "label": "Grunnlag: company / group / company_and_group"},
+        {
+            "name": "group_assessment",
+            "type": "collection",
+            "label": "Konsern-leddet (to-nivå-testen, GBER art. 2(18))",
+            "spec": [
+                {"name": "evaluated", "type": "boolean", "label": "Selskapet inngår i et konsern"},
+                {"name": "status", "type": "text", "label": "Konsern-status: clean/distressed/doubt/unknown"},
+                {"name": "basis", "type": "text", "label": "Databasis: konsernregnskap/aggregert_selskapsregnskap/utenlandsk_majoritet/ingen_data"},
+                {"name": "root_orgnr", "type": "text", "label": "Konsernspissens orgnr"},
+                {"name": "root_name", "type": "text", "label": "Konsernspissens navn"},
+                {"name": "members_total", "type": "uinteger", "label": "Antall selskaper i treet"},
+                {"name": "members_evaluated", "type": "uinteger", "label": "Antall med regnskapsdata"},
+                {
+                    "name": "members_distressed",
+                    "type": "array",
+                    "label": "Selskaper i konsernet som hver for seg er FIV",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {"name": "orgnr", "type": "text", "label": "Orgnr"},
+                            {"name": "navn", "type": "text", "label": "Navn"},
+                            {
+                                "name": "triggers",
+                                "type": "array",
+                                "label": "Utløste kriterier",
+                                "spec": {"type": "text"}
+                            }
+                        ]
+                    }
+                },
+                {"name": "capital_loss_ratio", "type": "number", "label": "Andel av konsernets innskutte kapital som er tapt"},
+                {"name": "truncated", "type": "boolean", "label": "Treet avkortet (over 500 selskaper)"}
+            ]
+        },
+        {"name": "rescuable_by_group", "type": "boolean", "label": "Konsernet kan rette opp forholdet med kapitaltilførsel (\"Ja (!)\")"},
+        {
+            "name": "rescue_estimate",
+            "type": "collection",
+            "label": "Hva konsernet må tilføre for å fjerne kapitalkriteriet (a)",
+            "spec": [
+                {"name": "konsernbidrag_min_nok", "type": "number", "label": "Minste konsernbidrag/tilskudd (NOK)"},
+                {"name": "kapitalforhoyelse_min_nok", "type": "number", "label": "Minste kapitalforhøyelse (NOK)"},
+                {"name": "frist", "type": "text", "label": "Frist (senest ved godkjenningstidspunktet for støtten)"}
+            ]
+        },
+        {"name": "as_of", "type": "date", "label": "Vurdert per"}
+    ],
+    "samples": {
+        "orgnr": "999999999",
+        "status": "not_distressed",
+        "company_status": "not_distressed",
+        "score": 0.12,
+        "confidence": 0.9,
+        "rules_fired": [
+            {"rule": "a", "fired": false, "forklaring": "Egenkapital ikke tapt"},
+            {"rule": "b", "fired": false, "forklaring": "Ikke under konkursbehandling"}
+        ],
+        "distress_basis": null,
+        "group_assessment": {
+            "evaluated": true,
+            "status": "clean",
+            "basis": "aggregert_selskapsregnskap",
+            "root_orgnr": "999888777",
+            "root_name": "Eksempel Holding AS",
+            "members_total": 4,
+            "members_evaluated": 4,
+            "members_distressed": [],
+            "capital_loss_ratio": 0.0,
+            "truncated": false
+        },
+        "rescuable_by_group": false,
+        "rescue_estimate": null,
+        "as_of": "2026-04-30T00:00:00Z"
+    }
+}

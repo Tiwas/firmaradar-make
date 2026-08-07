@@ -87,23 +87,72 @@ Samme tilkobling gjenbrukes på tvers av alle Firmaradar-moduler i alle scenarie
 
 ## Moduler
 
-8 moduler, samlet under én Firmaradar-app:
+20 action/search-moduler + 2 instant-triggere, samlet under én Firmaradar-app:
 
-### Søk (search-modul)
+### Søk (search-moduler)
 - **Search companies** — søk på navn eller orgnr, returnerer opptil 100 rader
+- **Search persons** — fuzzy navne-søk mot aksjonærer og rolleholdere, returnerer stabile person-nøkler
 
 ### Selskaps-handlinger (action-moduler)
 - **Get company** — full profil (organisasjonsform, NACE, ansatte, adresse, regnskap, eiere, roller)
 - **Get IP portfolio** — patenter, varemerker og design fra Patentstyret (dedikert IP-action)
 - **Get ownership** — konsernhierarki opp og ned, dybde 1–12, valgfri person-inkludering
 - **Get roles** — styre, daglig leder, prokura (med valgfri fratrådt-historikk)
-- **Get financials** — årsregnskap og nøkkeltall opptil 10 år tilbake
+- **Get financials** — årsregnskap og nøkkeltall opptil 10 år tilbake (rå tall for egen beregning)
+- **Get financial report (Excel/PDF)** — ferdig formatert regnskapsrapport som nedlastbar fil (til forskjell fra «Get financials», som gir rå tall): metadata + kortlevd (15 min) signert nedlastings-URL, opptil 5 regnskapsår, selskap eller konsern *(krever `excel_feed`- eller `print_til_pdf`-tilgang — se merknad)*
 - **Get recent changes** — endringer siste N dager (rolle, adresse, signal, kunngjøring)
 
-### KYC og AML
+### Risiko og KYC
+- **Get risk signals** — aggregerte risiko-signaler (KYC-kunngjøringer + distress/FIV + mellombalanse) i ett kall
+- **Get risk score** — transparent 0-100-score med nivå og komponent-breakdown *(markedsplass-gated — se merknad)*
+- **Check company in difficulty (FIV)** — foretak-i-vanskeligheter-status etter GBER art. 2(18) (EU-forordning 651/2014), kriteriene a-e, vurdert på to nivåer (selskap og konsern)
 - **Check AML/PEP** — full AML/PEP-screening med sanksjonslister, audit-log og formåls-tagging (kyc_onboarding / kyc_review / risk_monitoring / manual)
+- **Get AML score** *(deprecert 07-07 — se merknad)* — svarer nå kun 202 + `rapport_id`/`poll_url` (samme form som «Start AML report»); bruk «Start AML report» + «Get AML report» for nye scenarier
 
-Flere moduler — `get_announcements`, `get_signals`, `search_persons`, `compare_companies`, `list_companies_in_nace`, AML-score, FIV-sjekk — kommer i v0.2 og v0.3.
+### Person
+- **Get person roles** — full rolle-historikk (aktiv + historisk) på tvers av selskap
+- **Get person shareholdings** — aksjebeholdninger, eierandeler og total eierverdi
+
+### Offentlig støtte
+- **Get group public support** — direkte + konsern-aggregert offentlig støtte (NAV, Innovasjon Norge, SkatteFUNN, støtteregisteret)
+
+### Batch og async (portefølje-screening)
+- **Bulk: distress check (FIV)** — foretak-i-vanskeligheter for opptil 50 orgnr i ett kall; per-orgnr compliance-gate, 1 enhet/orgnr
+- **Bulk: risk score** — risikoscore (0-100 + nivå + komponenter) for opptil 50 orgnr i ett kall
+- **Start AML report (async)** — starter AML-rapport i bakgrunnen (submit → `rapport_id` + status «pending»); krever DPA-headers, lagres i 60 mnd
+- **Get AML report (poll)** — poller status/resultat for en async AML-rapport til `done`/`failed`
+
+### Instant triggers (webhook-baserte)
+Starter et scenario **når noe skjer** i stedet for å polle. Modulen `attach`-er
+scenariets Make-webhook-URL som callback hos Firmaradar ved oppretting og
+`detach`-er (DELETE) ved fjerning.
+- **Watch a company** — varsel ved kunngjøring, status-, eier- eller
+  tilskuddsendring for ett orgnr.
+- **Watch an industry (NACE)** — varsel når et selskap i en NACE-kode endrer seg,
+  med hendelsestype-, geo- (fylke/kommune) og størrelses-filtre.
+
+Valgfri leverings-hemmelighet sendes som `Authorization: Bearer`; NACE-leveranser
+signeres i tillegg med `X-Firmaradar-Signature`. Krever `firmaovervåkning` på kontoen.
+
+> **Merknad om «Get risk score» / «Bulk: risk score»:** risikoscoring er en markedsplass-gated funksjon.
+> Kontoen din må ha risikoscoring aktivert, og pre-screening-disclaimeren må være
+> bekreftet, ellers svarer handlingen `403`. Person-modulene krever full-søk-tilgang;
+> fødselsår maskeres til 4-sifret år.
+
+> **Merknad om «Get financial report (Excel/PDF)»:** krever `excel_feed`-tilgang
+> (xlsx) eller `print_til_pdf`-tilgang (pdf) aktivert på kontoen, ellers svarer
+> handlingen `403`. Leverer aldri filen inline — svaret er metadata + en
+> kortlevd (~15 min), signert nedlastings-URL. Maks 5 regnskapsår; 1 kreditt
+> per levert regnskapsår.
+
+> **Merknad om «Get AML score»:** `POST /api/v1/aml/score` er deprecert (Lars-vedtak
+> 2026-07-07, kostnadsmatrise §4.6 + pen-test B1). Kallet svarer nå `202` og starter
+> en asynkron AML-rapport i stedet for å returnere score/level synkront — samme
+> payload-form som «Start AML report», pluss `deprecated: true` + migreringsmelding.
+> Modulen er kun beholdt for bakoverkompatibilitet med eksisterende scenarier; bygg
+> nye scenarier mot «Start AML report (async)» + «Get AML report (poll)».
+
+v0.2-modulene `get_announcements`, `search_announcements`, `compare_companies`, `list_companies_in_nace`, `find_related_companies` og `find_shared_connections` ligger i `modules/` (kilde) og er **pushet live** til Custom App `firmaradar-p9vj9v` (07-09) via `scripts/make_sdk_push.py` (Make Apps SDK-API — camelCase modulnavn `getAnnouncements` osv. i live-appen). Appen har 25 moduler. Token: `secrets/make.env` (scopes `sdk-apps:read/write`, gitignorert). `get_aml_score` er nå også lagt til i kilden (mirrorer live-modulen `getAmlScore`, deprecert-kontrakt) — **ingen ny push** før markedsplass-review er ferdig.
 
 ---
 
@@ -175,12 +224,25 @@ tools/make_app/
 │   └── apiKey.json                   # API-key-tilkobling med test mot /health/ping
 ├── modules/
 │   ├── search_companies.json         # Search-type modul
+│   ├── search_persons.json           # Search: person-søk (fuzzy)
 │   ├── get_company.json              # Action: full profil
+│   ├── get_company_ip.json           # Action: IP-portefølje (Patentstyret)
 │   ├── get_ownership.json            # Action: eierskap m/direction + depth
 │   ├── get_roles.json                # Action: roller m/role_type + include_retired
-│   ├── get_financials.json           # Action: regnskap m/years
+│   ├── get_financials.json           # Action: regnskap m/years (rå tall)
+│   ├── get_regnskapsrapport.json     # Action: ferdig regnskapsrapport (xlsx/pdf) — gated
+│   ├── get_recent_changes.json       # Action: endringer siste N dager
+│   ├── get_signals.json              # Action: aggregerte risiko-signaler
+│   ├── get_risk_score.json           # Action: risikoscore 0-100 (markedsplass-gated)
+│   ├── check_fiv.json                # Action: foretak-i-vanskeligheter (GBER art. 2(18) a-e, selskap+konsern)
 │   ├── check_aml_pep.json            # POST: AML/PEP-screening m/purpose
-│   └── get_recent_changes.json       # Action: endringer siste N dager
+│   ├── get_person_roles.json         # Action: persons rolle-historikk
+│   ├── get_person_companies.json     # Action: persons aksjebeholdninger
+│   ├── get_konsernstotte.json        # Action: offentlig støtte gjennom konsernet
+│   ├── check_fiv_bulk.json           # POST: bulk FIV (opptil 50 orgnr)
+│   ├── get_risk_score_bulk.json      # POST: bulk risikoscore (opptil 50 orgnr)
+│   ├── start_aml_report.json         # POST: async AML-rapport (DPA-headers) → 202
+│   └── get_aml_report.json           # GET: poll async AML-rapport-status
 ├── functions/
 │   └── helpers.iml.js                # IML-helpers (orgnr-validering, error-extract)
 ├── templates/

@@ -1,0 +1,117 @@
+{
+    "name": "nace_changes",
+    "label": "NACE industry monitoring webhook",
+    "type": "web",
+    "connection": "apiKey",
+    "parameters": [
+        {
+            "name": "nace_code",
+            "type": "text",
+            "label": "NACE code",
+            "required": true,
+            "help": "Section (A), division (47) or specific code (47.110)."
+        },
+        {
+            "name": "events",
+            "type": "array",
+            "label": "Event types",
+            "required": false,
+            "help": "Which event types to deliver. Leave empty for all.",
+            "spec": {
+                "type": "select",
+                "options": [
+                    {"label": "Created", "value": "created"},
+                    {"label": "Updated", "value": "updated"},
+                    {"label": "Deleted", "value": "deleted"},
+                    {"label": "Status changed", "value": "status_changed"}
+                ]
+            }
+        },
+        {
+            "name": "aggregation_mode",
+            "type": "select",
+            "label": "Aggregation",
+            "default": "real_time",
+            "options": [
+                {"label": "Real-time", "value": "real_time"},
+                {"label": "Hourly digest", "value": "hourly_digest"},
+                {"label": "Daily digest", "value": "daily_digest"}
+            ]
+        },
+        {
+            "name": "fylke_filter",
+            "type": "text",
+            "label": "Fylke codes (comma-separated, optional)",
+            "required": false,
+            "help": "e.g. 03, 11"
+        },
+        {
+            "name": "kommune_filter",
+            "type": "text",
+            "label": "Kommune codes (comma-separated, optional)",
+            "required": false,
+            "help": "e.g. 0301, 1103"
+        },
+        {
+            "name": "min_ansatte",
+            "type": "uinteger",
+            "label": "Minimum employees (optional)",
+            "required": false
+        },
+        {
+            "name": "min_omsetning_nok",
+            "type": "uinteger",
+            "label": "Minimum revenue NOK (optional)",
+            "required": false
+        },
+        {
+            "name": "deliverySecret",
+            "type": "password",
+            "label": "Delivery secret (optional)",
+            "required": false,
+            "help": "Firmaradar sends this back as Authorization: Bearer on every delivery. When set, deliveries without the correct secret are ignored. (Deliveries can also carry an X-Firmaradar-Signature HMAC when the subscription has a signing secret, but Make webhooks cannot verify body signatures — use the delivery secret here.)"
+        }
+    ],
+    "api": {
+        "condition": "{{if(parameters.deliverySecret, get(headers, 'authorization') === ('Bearer ' + parameters.deliverySecret), true)}}",
+        "output": "{{body}}"
+    },
+    "attach": {
+        "url": "{{connection.baseUrl}}/api/v1/nace/subscriptions",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "nace_code": "{{parameters.nace_code}}",
+            "url": "{{webhook.url}}",
+            "bearer_token": "{{parameters.deliverySecret}}",
+            "events": "{{parameters.events}}",
+            "aggregation_mode": "{{parameters.aggregation_mode}}",
+            "fylke_filter": "{{split(parameters.fylke_filter, ',')}}",
+            "kommune_filter": "{{split(parameters.kommune_filter, ',')}}",
+            "min_ansatte": "{{parameters.min_ansatte}}",
+            "min_omsetning_nok": "{{parameters.min_omsetning_nok}}"
+        },
+        "response": {
+            "data": {
+                "id": "{{body.subscription.id}}"
+            },
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "detach": {
+        "url": "{{connection.baseUrl}}/api/v1/nace/subscriptions/{{webhook.id}}",
+        "method": "DELETE",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        }
+    }
+}

@@ -1,0 +1,62 @@
+{
+    "name": "company_changes",
+    "label": "Company monitoring webhook",
+    "type": "web",
+    "connection": "apiKey",
+    "parameters": [
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organisation number",
+            "required": true,
+            "help": "9-digit Norwegian organisation number to watch.",
+            "validate": {
+                "pattern": "^[0-9]{9}$",
+                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+            }
+        },
+        {
+            "name": "deliverySecret",
+            "type": "password",
+            "label": "Delivery secret (optional)",
+            "required": false,
+            "help": "Firmaradar sends this back as Authorization: Bearer on every delivery. When set, deliveries without the correct secret are ignored."
+        }
+    ],
+    "api": {
+        "condition": "{{if(parameters.deliverySecret, get(headers, 'authorization') === ('Bearer ' + parameters.deliverySecret), true)}}",
+        "output": "{{body}}"
+    },
+    "attach": {
+        "url": "{{connection.baseUrl}}/api/v1/monitoring/webhooks",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        "body": {
+            "orgnr": "{{parameters.orgnr}}",
+            "url": "{{webhook.url}}",
+            "delivery_key": "{{parameters.deliverySecret}}"
+        },
+        "response": {
+            "data": {
+                "id": "{{body.id}}"
+            },
+            "error": {
+                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
+            }
+        }
+    },
+    "detach": {
+        "url": "{{connection.baseUrl}}/api/v1/monitoring/webhooks/{{webhook.id}}",
+        "method": "DELETE",
+        "headers": {
+            "Authorization": "Bearer {{connection.apiKey}}",
+            "X-FR-Client": "make-firmaradar/0.1",
+            "Accept": "application/json"
+        }
+    }
+}
