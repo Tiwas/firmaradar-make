@@ -52,7 +52,7 @@
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/regnskapsrapport/{{parameters.orgnr}}",
+        "url": "/api/v1/regnskapsrapport/{{parameters.orgnr}}",
         "method": "GET",
         "qs": {
             "format": "{{parameters.format}}",
@@ -72,21 +72,21 @@
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-        {"name": "regnskapstype", "type": "text", "label": "Regnskapstype (SELSKAP/KONSERN)"},
+        {"name": "orgnr", "type": "text", "label": "Organization number"},
+        {"name": "regnskapstype", "type": "text", "label": "Statement type (SELSKAP/KONSERN)"},
         {"name": "format", "type": "text", "label": "Format (xlsx/pdf)"},
-        {"name": "antall_aar", "type": "uinteger", "label": "Antall regnskapsår faktisk levert"},
-        {"name": "maks_aar", "type": "uinteger", "label": "Maks antall regnskapsår (5)"},
+        {"name": "antall_aar", "type": "uinteger", "label": "Number of accounting years delivered"},
+        {"name": "maks_aar", "type": "uinteger", "label": "Maximum accounting years (5)"},
         {
             "name": "aar",
             "type": "array",
-            "label": "Årene som inngår (nyeste først)",
+            "label": "Included years (newest first)",
             "spec": {"type": "uinteger"}
         },
-        {"name": "kilde", "type": "text", "label": "Kilde-etikett vist i rapporten"},
-        {"name": "valuta", "type": "text", "label": "Valuta"},
-        {"name": "download_url", "type": "text", "label": "Nedlastings-URL (signert, kortlevd)"},
-        {"name": "expires_in", "type": "uinteger", "label": "Sekunder til download_url utløper"}
+        {"name": "kilde", "type": "text", "label": "Source label shown in the report"},
+        {"name": "valuta", "type": "text", "label": "Currency"},
+        {"name": "download_url", "type": "text", "label": "Signed short-lived download URL"},
+        {"name": "expires_in", "type": "uinteger", "label": "Seconds until download_url expires"}
     ],
     "samples": {
         "orgnr": "999999999",
@@ -97,7 +97,7 @@
         "aar": [2025, 2024, 2023, 2022, 2021],
         "kilde": "Regnskapsregisteret",
         "valuta": "NOK",
-        "download_url": "https://firmaradar.no/dl/regnskapsrapport/a1b2c3d4.pdf?sig=example",
+        "download_url": "https://firmaradar.no/api/v1/regnskapsrapport/download/eyJvcmduciI6Ijk5OTk5OTk5OSJ9.example.signature",
         "expires_in": 900
     }
 }

@@ -1,82 +1,422 @@
 {
     "name": "get_konsernstotte",
     "label": "Get group public support",
-    "description": "Get an overview of public support (grants) received through the corporate group: direct support to the company (selskap_stotte) and support aggregated upward through the ownership tree (konsern_aggregat). Fuses NAV grants, corona support, the BRREG support register, Innovasjon Norge and SkatteFUNN into one decision-ready view.",
+    "description": "Retrieves an overview of public support (state aid) received across the corporate group: direct support to the company (selskap_stotte) and support aggregated up the ownership tree (konsern_aggregat). Fuses NAV grants, COVID-19 support, the BRREG state-aid registry, Innovasjon Norge and SkatteFUNN into one decision-ready overview.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/konsernstotte/oversikt/{{parameters.orgnr}}",
+        "url": "/api/v1/konsernstotte/oversikt/{{parameters.orgnr}}",
         "method": "GET",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
         {
-            "name": "selskap_stotte",
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "tre",
             "type": "collection",
-            "label": "Direkte støtte (selskap)",
+            "label": "Ownership tree with direct support per node. Declared field by field to depth 4; the response can contain nodes down to depth 12 — see the barn field at the deepest declared level.",
             "spec": [
-                {"name": "sum_nok", "type": "number", "label": "Sum støtte (NOK)"},
-                {"name": "antall", "type": "uinteger", "label": "Antall tildelinger"}
+                {
+                    "name": "orgnr",
+                    "type": "text",
+                    "label": "Organization number"
+                },
+                {
+                    "name": "navn",
+                    "type": "text",
+                    "label": "Company name"
+                },
+                {
+                    "name": "navn_konfidens",
+                    "type": "text",
+                    "label": "Confidence in the resolved name"
+                },
+                {
+                    "name": "antall_underselskaper",
+                    "type": "uinteger",
+                    "label": "Number of direct subsidiaries"
+                },
+                {
+                    "name": "selskap_stotte",
+                    "type": "collection",
+                    "label": "Support paid DIRECTLY to this company",
+                    "spec": [
+                        {
+                            "name": "innovasjon_norge",
+                            "type": "uinteger",
+                            "label": "Grants from Innovasjon Norge"
+                        },
+                        {
+                            "name": "skattefunn",
+                            "type": "uinteger",
+                            "label": "SkatteFUNN projects"
+                        },
+                        {
+                            "name": "andre",
+                            "type": "uinteger",
+                            "label": "Other schemes"
+                        },
+                        {
+                            "name": "antall_prosjekter",
+                            "type": "uinteger",
+                            "label": "Projects in total"
+                        },
+                        {
+                            "name": "total_belop_nok",
+                            "type": "number",
+                            "label": "Total amount (NOK)"
+                        }
+                    ]
+                },
+                {
+                    "name": "truncated_at_depth",
+                    "type": "boolean",
+                    "label": "Tree truncated here — descendants NOT included"
+                },
+                {
+                    "name": "cycle",
+                    "type": "boolean",
+                    "label": "Circular ownership — traversal stopped"
+                },
+                {
+                    "name": "barn",
+                    "type": "array",
+                    "label": "Child nodes (depth 2)",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number"
+                            },
+                            {
+                                "name": "navn",
+                                "type": "text",
+                                "label": "Company name"
+                            },
+                            {
+                                "name": "navn_konfidens",
+                                "type": "text",
+                                "label": "Confidence in the resolved name"
+                            },
+                            {
+                                "name": "antall_underselskaper",
+                                "type": "uinteger",
+                                "label": "Number of direct subsidiaries"
+                            },
+                            {
+                                "name": "selskap_stotte",
+                                "type": "collection",
+                                "label": "Support paid DIRECTLY to this company",
+                                "spec": [
+                                    {
+                                        "name": "innovasjon_norge",
+                                        "type": "uinteger",
+                                        "label": "Grants from Innovasjon Norge"
+                                    },
+                                    {
+                                        "name": "skattefunn",
+                                        "type": "uinteger",
+                                        "label": "SkatteFUNN projects"
+                                    },
+                                    {
+                                        "name": "andre",
+                                        "type": "uinteger",
+                                        "label": "Other schemes"
+                                    },
+                                    {
+                                        "name": "antall_prosjekter",
+                                        "type": "uinteger",
+                                        "label": "Projects in total"
+                                    },
+                                    {
+                                        "name": "total_belop_nok",
+                                        "type": "number",
+                                        "label": "Total amount (NOK)"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "truncated_at_depth",
+                                "type": "boolean",
+                                "label": "Tree truncated here — descendants NOT included"
+                            },
+                            {
+                                "name": "cycle",
+                                "type": "boolean",
+                                "label": "Circular ownership — traversal stopped"
+                            },
+                            {
+                                "name": "barn",
+                                "type": "array",
+                                "label": "Child nodes (depth 3)",
+                                "spec": {
+                                    "type": "collection",
+                                    "spec": [
+                                        {
+                                            "name": "orgnr",
+                                            "type": "text",
+                                            "label": "Organization number"
+                                        },
+                                        {
+                                            "name": "navn",
+                                            "type": "text",
+                                            "label": "Company name"
+                                        },
+                                        {
+                                            "name": "navn_konfidens",
+                                            "type": "text",
+                                            "label": "Confidence in the resolved name"
+                                        },
+                                        {
+                                            "name": "antall_underselskaper",
+                                            "type": "uinteger",
+                                            "label": "Number of direct subsidiaries"
+                                        },
+                                        {
+                                            "name": "selskap_stotte",
+                                            "type": "collection",
+                                            "label": "Support paid DIRECTLY to this company",
+                                            "spec": [
+                                                {
+                                                    "name": "innovasjon_norge",
+                                                    "type": "uinteger",
+                                                    "label": "Grants from Innovasjon Norge"
+                                                },
+                                                {
+                                                    "name": "skattefunn",
+                                                    "type": "uinteger",
+                                                    "label": "SkatteFUNN projects"
+                                                },
+                                                {
+                                                    "name": "andre",
+                                                    "type": "uinteger",
+                                                    "label": "Other schemes"
+                                                },
+                                                {
+                                                    "name": "antall_prosjekter",
+                                                    "type": "uinteger",
+                                                    "label": "Projects in total"
+                                                },
+                                                {
+                                                    "name": "total_belop_nok",
+                                                    "type": "number",
+                                                    "label": "Total amount (NOK)"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "truncated_at_depth",
+                                            "type": "boolean",
+                                            "label": "Tree truncated here — descendants NOT included"
+                                        },
+                                        {
+                                            "name": "cycle",
+                                            "type": "boolean",
+                                            "label": "Circular ownership — traversal stopped"
+                                        },
+                                        {
+                                            "name": "barn",
+                                            "type": "array",
+                                            "label": "Child nodes (depth 4)",
+                                            "spec": {
+                                                "type": "collection",
+                                                "spec": [
+                                                    {
+                                                        "name": "orgnr",
+                                                        "type": "text",
+                                                        "label": "Organization number"
+                                                    },
+                                                    {
+                                                        "name": "navn",
+                                                        "type": "text",
+                                                        "label": "Company name"
+                                                    },
+                                                    {
+                                                        "name": "navn_konfidens",
+                                                        "type": "text",
+                                                        "label": "Confidence in the resolved name"
+                                                    },
+                                                    {
+                                                        "name": "antall_underselskaper",
+                                                        "type": "uinteger",
+                                                        "label": "Number of direct subsidiaries"
+                                                    },
+                                                    {
+                                                        "name": "selskap_stotte",
+                                                        "type": "collection",
+                                                        "label": "Support paid DIRECTLY to this company",
+                                                        "spec": [
+                                                            {
+                                                                "name": "innovasjon_norge",
+                                                                "type": "uinteger",
+                                                                "label": "Grants from Innovasjon Norge"
+                                                            },
+                                                            {
+                                                                "name": "skattefunn",
+                                                                "type": "uinteger",
+                                                                "label": "SkatteFUNN projects"
+                                                            },
+                                                            {
+                                                                "name": "andre",
+                                                                "type": "uinteger",
+                                                                "label": "Other schemes"
+                                                            },
+                                                            {
+                                                                "name": "antall_prosjekter",
+                                                                "type": "uinteger",
+                                                                "label": "Projects in total"
+                                                            },
+                                                            {
+                                                                "name": "total_belop_nok",
+                                                                "type": "number",
+                                                                "label": "Total amount (NOK)"
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
+                                                        "name": "truncated_at_depth",
+                                                        "type": "boolean",
+                                                        "label": "Tree truncated here — descendants NOT included"
+                                                    },
+                                                    {
+                                                        "name": "cycle",
+                                                        "type": "boolean",
+                                                        "label": "Circular ownership — traversal stopped"
+                                                    },
+                                                    {
+                                                        "name": "barn",
+                                                        "type": "array",
+                                                        "label": "Child nodes at depth 5 and deeper. These are not declared field by field: the group tree can nest deeper than Make's interface can express, and declaring every level would make this module unusably large. The nodes carry the same shape as the levels above. Their support is included in konsern_aggregat, so group totals are complete even where the individual nodes are not mappable. Use a JSON parser on this array if you need them."
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
             ]
         },
         {
             "name": "konsern_aggregat",
             "type": "collection",
-            "label": "Aggregert konsern-støtte",
+            "label": "Aggregated across the group",
             "spec": [
-                {"name": "sum_nok", "type": "number", "label": "Sum støtte konsern (NOK)"},
-                {"name": "antall", "type": "uinteger", "label": "Antall tildelinger konsern"},
-                {"name": "antall_selskaper", "type": "uinteger", "label": "Antall selskaper med støtte"}
+                {
+                    "name": "innovasjon_norge",
+                    "type": "uinteger",
+                    "label": "Grants from Innovasjon Norge, whole group"
+                },
+                {
+                    "name": "skattefunn",
+                    "type": "uinteger",
+                    "label": "SkatteFUNN projects, whole group"
+                },
+                {
+                    "name": "andre",
+                    "type": "uinteger",
+                    "label": "Other schemes, whole group"
+                },
+                {
+                    "name": "antall_prosjekter",
+                    "type": "uinteger",
+                    "label": "Number of projects"
+                },
+                {
+                    "name": "total_belop_nok",
+                    "type": "number",
+                    "label": "Total amount (NOK)"
+                },
+                {
+                    "name": "antall_selskaper",
+                    "type": "uinteger",
+                    "label": "Companies counted in the aggregate"
+                }
             ]
         },
         {
-            "name": "tildelinger",
-            "type": "array",
-            "label": "Tildelinger",
-            "spec": {
-                "type": "collection",
-                "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Mottaker (orgnr)"},
-                    {"name": "navn", "type": "text", "label": "Mottaker (navn)"},
-                    {"name": "kilde", "type": "text", "label": "Kilde"},
-                    {"name": "ordning", "type": "text", "label": "Ordning"},
-                    {"name": "belop_nok", "type": "number", "label": "Beløp (NOK)"},
-                    {"name": "aar", "type": "uinteger", "label": "År"}
-                ]
-            }
+            "name": "meta",
+            "type": "collection",
+            "label": "Metadata, including depth truncation",
+            "spec": [
+                {
+                    "name": "root_orgnr",
+                    "type": "text",
+                    "label": "Organization number the tree was built from"
+                },
+                {
+                    "name": "max_depth",
+                    "type": "uinteger",
+                    "label": "Maximum depth traversed"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('tildeling_data')"
+                },
+                {
+                    "name": "source_label",
+                    "type": "text",
+                    "label": "Human-readable source list"
+                },
+                {
+                    "name": "stotte_modell",
+                    "type": "text",
+                    "label": "How support is modelled — company-level only, never to the group"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "Set to 'missing_orgnr' when the organization number could not be parsed"
+                }
+            ]
         }
     ],
     "samples": {
-        "orgnr": "999999999",
-        "selskap_stotte": {"sum_nok": 1250000, "antall": 3},
-        "konsern_aggregat": {"sum_nok": 4800000, "antall": 11, "antall_selskaper": 4},
-        "tildelinger": [
-            {"orgnr": "999999999", "navn": "Eksempel AS", "kilde": "Innovasjon Norge", "ordning": "Innovasjonstilskudd", "belop_nok": 900000, "aar": 2025},
-            {"orgnr": "999999999", "navn": "Eksempel AS", "kilde": "SkatteFUNN", "ordning": "SkatteFUNN", "belop_nok": 350000, "aar": 2024}
-        ]
+        "orgnr": "923609016",
+        "tre": {
+            "orgnr": "923609016",
+            "navn": "EQUINOR ASA",
+            "selskap_stotte": {
+                "total_belop_nok": 1250000,
+                "antall_prosjekter": 2
+            },
+            "barn": [],
+            "truncated_at_depth": false
+        },
+        "konsern_aggregat": {
+            "total_belop_nok": 4750000,
+            "antall_prosjekter": 7
+        },
+        "meta": {
+            "root_orgnr": "923609016",
+            "max_depth": 5,
+            "source": "tildeling_data",
+            "source_label": "Offentlig støtte (BRREG støtteregister, SkatteFUNN, Innovasjon Norge, Prosjektbanken)",
+            "stotte_modell": "Selskapsstøtte per node + konsern-aggregat på rot — støtte gis kun til selskap, aldri til konsern direkte."
+        }
     }
 }

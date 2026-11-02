@@ -1,94 +1,124 @@
 {
     "name": "search_companies",
     "label": "Search companies",
-    "description": "Search Norwegian companies by name or organisation number. Returns up to N matches with orgnr, name, organisation form and status.",
+    "description": "Searches Norwegian companies by name, NACE industry, municipality, or any combination. Returns iterable bundles — each match is one bundle you can use directly in the next module.",
     "connection": "apiKey",
     "type": "search",
+    "crud": "read",
     "parameters": [
         {
-            "name": "query",
+            "help": "Company name prefix (e.g. 'equinor') or an exact nine-digit organization number. Leave empty if you only filter by NACE code or municipality. Use 'Get company' when you already know the organization number and want its full basic record.",
+            "name": "q",
             "type": "text",
-            "label": "Search query",
-            "required": true,
-            "help": "Company name or 9-digit organisation number."
+            "label": "Company name or organization number"
         },
         {
+            "help": "Industry code (SN2007). E.g. 06.100 (Extraction of crude petroleum), 62.010 (Computer programming). Uses prefix matching — '06' matches all 06.xxx codes.",
+            "name": "nace",
+            "type": "text",
+            "label": "NACE code"
+        },
+        {
+            "help": "Four-digit municipality number from SSB (Statistics Norway). E.g. 0301 = Oslo, 1103 = Stavanger, 5001 = Trondheim.",
+            "name": "kommune",
+            "type": "text",
+            "label": "Municipality number"
+        },
+        {
+            "help": "Number of companies to return (1–100). Default 10. Make stops iterating when this is reached.",
             "name": "limit",
             "type": "uinteger",
-            "label": "Max results",
-            "default": 20,
+            "label": "Max number of results",
+            "default": 10,
+            "validate": {
+                "max": 100,
+                "min": 1
+            }
+        },
+        {
+            "help": "Optional API page size (1–100). Leave empty to use Max number of results. A smaller value lets Make retrieve several pages, for example 2 per page and 5 results total.",
+            "name": "page_size",
+            "type": "uinteger",
+            "label": "API page size",
             "validate": {
                 "min": 1,
                 "max": 100
-            },
-            "help": "Maximum number of matches to return (1-100)."
+            }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/search/companies",
+        "url": "/api/v1/companies/search",
         "method": "GET",
         "qs": {
-            "q": "{{parameters.query}}",
-            "limit": "{{parameters.limit}}"
+            "q": "{{parameters.q}}",
+            "nace": "{{parameters.nace}}",
+            "kommune": "{{parameters.kommune}}",
+            "limit": "{{ifempty(parameters.page_size, parameters.limit)}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
+        "pagination": {
+            "qs": {
+                "cursor": "{{body.next_cursor}}"
+            },
+            "condition": "{{body.next_cursor}}"
         },
         "response": {
-            "iterate": "{{body.results}}",
+            "iterate": "{{body.items}}",
             "output": {
                 "orgnr": "{{item.orgnr}}",
                 "navn": "{{item.navn}}",
                 "organisasjonsform": "{{item.organisasjonsform}}",
-                "status": "{{item.status}}",
-                "registreringsdato": "{{item.registreringsdato}}",
-                "kommune": "{{item.kommune}}"
+                "naeringskode": "{{item.naeringskode}}",
+                "kommune": "{{item.kommune}}",
+                "antall_ansatte": "{{item.antall_ansatte}}",
+                "status": "{{item.status}}"
             },
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "limit": "{{parameters.limit}}"
         }
     },
     "interface": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Organization number"
         },
         {
             "name": "navn",
             "type": "text",
-            "label": "Selskapsnavn"
+            "label": "Name"
         },
         {
             "name": "organisasjonsform",
             "type": "text",
-            "label": "Organisasjonsform"
+            "label": "Legal form"
         },
         {
-            "name": "status",
+            "name": "naeringskode",
             "type": "text",
-            "label": "Status"
-        },
-        {
-            "name": "registreringsdato",
-            "type": "date",
-            "label": "Registrert"
+            "label": "NACE code"
         },
         {
             "name": "kommune",
             "type": "text",
-            "label": "Kommune"
+            "label": "Municipality number"
+        },
+        {
+            "name": "antall_ansatte",
+            "type": "number",
+            "label": "Number of employees"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status (aktiv/konkurs/under_avvikling)"
         }
     ],
     "samples": {
-        "orgnr": "999999999",
-        "navn": "Eksempel AS",
-        "organisasjonsform": "AS",
-        "status": "aktiv",
-        "registreringsdato": "2010-04-12",
-        "kommune": "0301"
+        "orgnr": "923609016",
+        "navn": "EQUINOR ASA",
+        "organisasjonsform": "ASA",
+        "naeringskode": "06.100",
+        "kommune": "1103",
+        "antall_ansatte": 21327,
+        "status": "aktiv"
     }
 }

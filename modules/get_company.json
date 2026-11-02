@@ -1,168 +1,196 @@
 {
     "name": "get_company",
     "label": "Get company",
-    "description": "Get a full company profile by organisation number: organisation form, NACE codes, employees, address, financials, owners and roles. Use 'Include extra sections' to enrich with group structure, ownership tiers, grants, recent changes, financial metrics, or the intellectual-property portfolio (patents, trademarks and designs from Patentstyret).",
+    "description": "Retrieves core company information by 9-digit Norwegian organization number (orgnr).",
     "connection": "apiKey",
     "type": "action",
+    "crud": "read",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr) from Brønnøysundregistrene (Norwegian Business Register).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Organization number must be exactly 9 digits."
             }
-        },
-        {
-            "name": "fields",
-            "type": "select",
-            "label": "Include extra sections",
-            "multiple": true,
-            "options": [
-                {"label": "Group structure", "value": "group"},
-                {"label": "Owners", "value": "owners"},
-                {"label": "Owners (business)", "value": "business_owners"},
-                {"label": "Owners (all, incl. persons)", "value": "full_owners"},
-                {"label": "Public grants", "value": "grants"},
-                {"label": "BRREG grants", "value": "brreg_grants"},
-                {"label": "Intellectual property (Patentstyret)", "value": "ip"},
-                {"label": "Recent changes", "value": "changes"},
-                {"label": "Financial metrics", "value": "financial_metrics"}
-            ],
-            "help": "Optional enrichment sections. 'Intellectual property' returns patents, trademarks and designs from Patentstyret."
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}",
+        "url": "/api/v1/company/{{parameters.orgnr}}/basic",
         "method": "GET",
-        "qs": {
-            "fields": "{{join(parameters.fields, ',')}}"
-        },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Organization number"
         },
         {
             "name": "navn",
             "type": "text",
-            "label": "Selskapsnavn"
+            "label": "Name"
         },
         {
             "name": "organisasjonsform",
             "type": "text",
-            "label": "Organisasjonsform"
+            "label": "Legal form"
         },
         {
             "name": "status",
             "type": "text",
-            "label": "Status"
+            "label": "Status (aktiv/konkurs/under_avvikling/under_tvangsavvikling)"
         },
         {
-            "name": "naceKode",
+            "name": "registreringsdato",
             "type": "text",
-            "label": "NACE-kode"
-        },
-        {
-            "name": "ansatte",
-            "type": "uinteger",
-            "label": "Antall ansatte"
-        },
-        {
-            "name": "adresse",
-            "type": "collection",
-            "label": "Forretningsadresse",
-            "spec": [
-                {"name": "gate", "type": "text", "label": "Gate"},
-                {"name": "postnummer", "type": "text", "label": "Postnummer"},
-                {"name": "poststed", "type": "text", "label": "Poststed"},
-                {"name": "kommune", "type": "text", "label": "Kommune"}
-            ]
+            "label": "Registration date"
         },
         {
             "name": "stiftelsesdato",
-            "type": "date",
-            "label": "Stiftelsesdato"
+            "type": "text",
+            "label": "Incorporation date"
         },
         {
-            "name": "regnskap",
-            "type": "collection",
-            "label": "Siste regnskap",
-            "spec": [
-                {"name": "ar", "type": "uinteger", "label": "År"},
-                {"name": "omsetning", "type": "number", "label": "Omsetning"},
-                {"name": "resultat", "type": "number", "label": "Resultat før skatt"},
-                {"name": "egenkapital", "type": "number", "label": "Egenkapital"}
-            ]
+            "name": "antall_ansatte",
+            "type": "number",
+            "label": "Number of employees"
         },
         {
-            "name": "eiere",
-            "type": "array",
-            "label": "Eiere",
-            "spec": {
-                "type": "collection",
-                "spec": [
-                    {"name": "navn", "type": "text", "label": "Navn"},
-                    {"name": "orgnr", "type": "text", "label": "Orgnr"},
-                    {"name": "andel", "type": "number", "label": "Andel (%)"},
-                    {"name": "type", "type": "text", "label": "Type"}
-                ]
-            }
+            "name": "naeringskode",
+            "type": "text",
+            "label": "NACE code"
         },
         {
-            "name": "ip_rettigheter",
-            "type": "collection",
-            "label": "Immaterielle rettigheter (Patentstyret)",
-            "spec": [
-                {"name": "patents", "type": "uinteger", "label": "Patenter"},
-                {"name": "patents_active", "type": "uinteger", "label": "Aktive patenter"},
-                {"name": "trademarks", "type": "uinteger", "label": "Varemerker"},
-                {"name": "trademarks_active", "type": "uinteger", "label": "Aktive varemerker"},
-                {"name": "designs", "type": "uinteger", "label": "Design"},
-                {"name": "designs_active", "type": "uinteger", "label": "Aktive design"},
-                {"name": "is_ip_active", "type": "boolean", "label": "Har aktive rettigheter"}
-            ]
+            "name": "naeringskode_beskrivelse",
+            "type": "text",
+            "label": "NACE description"
+        },
+        {
+            "name": "siste_aarsregnskap",
+            "type": "text",
+            "label": "Latest accounting year — TEXT, e.g. '2025' (the column is TEXT and is passed through unchanged)"
+        },
+        {
+            "name": "er_i_konsern",
+            "type": "boolean",
+            "label": "Part of a group"
+        },
+        {
+            "name": "kapital_belop",
+            "type": "number",
+            "label": "Share capital (amount)"
+        },
+        {
+            "name": "kapital_valuta",
+            "type": "text",
+            "label": "Share capital (currency)"
+        },
+        {
+            "name": "mva_registrert",
+            "type": "boolean",
+            "label": "VAT registered"
+        },
+        {
+            "name": "konkurs",
+            "type": "boolean",
+            "label": "Bankrupt"
+        },
+        {
+            "name": "konkursdato",
+            "type": "text",
+            "label": "Bankruptcy date"
+        },
+        {
+            "name": "under_avvikling",
+            "type": "boolean",
+            "label": "Under liquidation"
+        },
+        {
+            "name": "avviklingsdato",
+            "type": "text",
+            "label": "Liquidation date"
+        },
+        {
+            "name": "under_tvangsavvikling",
+            "type": "boolean",
+            "label": "Under compulsory liquidation"
+        },
+        {
+            "name": "forr_adresse",
+            "type": "text",
+            "label": "Business address"
+        },
+        {
+            "name": "forr_postnummer",
+            "type": "text",
+            "label": "Postal code"
+        },
+        {
+            "name": "forr_poststed",
+            "type": "text",
+            "label": "Postal town"
+        },
+        {
+            "name": "forr_kommune",
+            "type": "text",
+            "label": "Municipality"
+        },
+        {
+            "name": "forr_landkode",
+            "type": "text",
+            "label": "Country code"
+        },
+        {
+            "name": "epost",
+            "type": "text",
+            "label": "Email"
+        },
+        {
+            "name": "telefon",
+            "type": "text",
+            "label": "Phone"
+        },
+        {
+            "name": "mobil",
+            "type": "text",
+            "label": "Mobile"
+        },
+        {
+            "name": "hjemmeside",
+            "type": "url",
+            "label": "Website"
         }
     ],
     "samples": {
-        "orgnr": "999999999",
-        "navn": "Eksempel AS",
-        "organisasjonsform": "AS",
-        "status": "aktiv",
-        "naceKode": "62.010",
-        "ansatte": 24,
-        "adresse": {
-            "gate": "Storgata 1",
-            "postnummer": "0155",
-            "poststed": "Oslo",
-            "kommune": "0301"
-        },
-        "stiftelsesdato": "2010-04-12",
-        "regnskap": {
-            "ar": 2025,
-            "omsetning": 18500000,
-            "resultat": 2350000,
-            "egenkapital": 8400000
-        },
-        "eiere": [
-            {"navn": "Eier AS", "orgnr": "888888888", "andel": 75.0, "type": "selskap"},
-            {"navn": "Person Nordmann", "orgnr": "", "andel": 25.0, "type": "person"}
-        ]
+        "orgnr": "923609016",
+        "navn": "EQUINOR ASA",
+        "organisasjonsform": "ASA",
+        "registreringsdato": "1995-03-12",
+        "stiftelsesdato": "1972-09-18",
+        "antall_ansatte": 21327,
+        "naeringskode": "06.100",
+        "naeringskode_beskrivelse": "Utvinning av råolje",
+        "siste_aarsregnskap": "2024",
+        "er_i_konsern": true,
+        "kapital_belop": 6392018780,
+        "kapital_valuta": "NOK",
+        "mva_registrert": true,
+        "konkurs": false,
+        "under_avvikling": false,
+        "under_tvangsavvikling": false,
+        "forr_adresse": "Forusbeen 50",
+        "forr_postnummer": "4035",
+        "forr_poststed": "STAVANGER",
+        "forr_kommune": "STAVANGER",
+        "forr_landkode": "NO",
+        "hjemmeside": "www.equinor.com",
+        "telefon": "51 99 00 00",
+        "status": "aktiv"
     }
 }

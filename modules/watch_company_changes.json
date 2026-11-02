@@ -28,13 +28,13 @@
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-                    {"name": "company_name", "type": "text", "label": "Selskapsnavn"},
-                    {"name": "change_type", "type": "text", "label": "Endringstype (ownership_change/grant_change/kunngjoring)"},
-                    {"name": "category", "type": "text", "label": "Kategori"},
-                    {"name": "description", "type": "text", "label": "Beskrivelse"},
-                    {"name": "previous_value", "type": "text", "label": "Forrige verdi"},
-                    {"name": "new_value", "type": "text", "label": "Ny verdi"}
+                    {"name": "orgnr", "type": "text", "label": "Organization number"},
+                    {"name": "company_name", "type": "text", "label": "Company name"},
+                    {"name": "change_type", "type": "text", "label": "Change type (ownership_change/grant_change/kunngjoring)"},
+                    {"name": "category", "type": "text", "label": "Category"},
+                    {"name": "description", "type": "text", "label": "Description"},
+                    {"name": "previous_value", "type": "text", "label": "Previous value"},
+                    {"name": "new_value", "type": "text", "label": "New value"}
                 ]
             }
         }

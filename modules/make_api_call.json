@@ -1,0 +1,127 @@
+{
+    "name": "make_api_call",
+    "label": "Make an API call",
+    "description": "Performs an arbitrary authenticated call against the Firmaradar API for endpoints the dedicated modules do not cover. It cannot call DPA-gated AML endpoints; use the dedicated AML modules, which collect the required purpose and confirmation. Takes a relative path, an HTTP method and optional headers, query string and body, and returns the status code, response headers and body.",
+    "connection": "apiKey",
+    "type": "universal",
+    "parameters": [
+        {
+            "name": "url",
+            "type": "text",
+            "label": "Path after /api/",
+            "required": true,
+            "help": "Path AFTER the /api/ prefix, which is added automatically — for example v1/company/923609016 or regnskap/923609016/historikk. Every Firmaradar endpoint lives under /api/. Dot segments are rejected in both literal ('.', '..') and percent-encoded (%2e) form: URL normalisation treats both as parent segments, which would resolve out of the /api/ prefix.",
+            "validate": {
+                "pattern": "^(?!.*%2[eE])(?!.*(^|/)\\.\\.?($|/))[A-Za-z0-9._~!$&'()*+,;=:@%?#\\[\\]-][^\\\\\\x00-\\x1f]*$",
+                "patternErrorMessage": "Enter the path after /api/, with no leading slash or backslash, no '.' or '..' segments, and no percent-encoded dots (%2e). Example: v1/company/923609016."
+            }
+        },
+        {
+            "name": "method",
+            "type": "select",
+            "label": "Method",
+            "default": "GET",
+            "required": true,
+            "options": [
+                {
+                    "label": "GET",
+                    "value": "GET"
+                },
+                {
+                    "label": "POST",
+                    "value": "POST"
+                },
+                {
+                    "label": "PUT",
+                    "value": "PUT"
+                },
+                {
+                    "label": "PATCH",
+                    "value": "PATCH"
+                },
+                {
+                    "label": "DELETE",
+                    "value": "DELETE"
+                }
+            ]
+        },
+        {
+            "name": "headers",
+            "type": "array",
+            "label": "Headers",
+            "help": "Extra request headers. Authorization and the Make/DPA control headers are set or protected by the app and cannot be supplied here. DPA-gated AML endpoints must use the dedicated AML modules.",
+            "spec": [
+                {
+                    "name": "key",
+                    "type": "text",
+                    "label": "Name"
+                },
+                {
+                    "name": "value",
+                    "type": "text",
+                    "label": "Value"
+                }
+            ]
+        },
+        {
+            "name": "qs",
+            "type": "array",
+            "label": "Query string",
+            "help": "Query-string parameters, added to any already present in the path.",
+            "spec": [
+                {
+                    "name": "key",
+                    "type": "text",
+                    "label": "Name"
+                },
+                {
+                    "name": "value",
+                    "type": "text",
+                    "label": "Value"
+                }
+            ]
+        },
+        {
+            "name": "body",
+            "type": "any",
+            "label": "Body",
+            "help": "Request body for POST, PUT and PATCH. Ignored for GET and DELETE."
+        }
+    ],
+    "communication": {
+        "//": "SECURITY, presist om hva prefikset faktisk garanterer.\nDet fikse '/api/'-prefikset garanterer ORIGIN: en ledende '/' eller '\\\\' i brukerens verdi kan aldri gi en protokoll-relativ referanse, fordi '//' bare er protokoll-relativt i STARTEN av referansen. '\\\\evil.example/x' blir '/api/\\\\evil.example/x' → '/api//evil.example/x', altså fortsatt vår egen vert. Authorization-headeren kan derfor ikke sendes til en server brukeren velger.\n🪤 Prefikset alene garanterer IKKE at kallet holder seg innenfor /api/. '../ext/...' kan normaliseres utenfor prefikset, og Make kan la en MAPPET verdi hoppe over UI-valideringen. Denne modulen sender derfor alltid den faste X-FR-Make-Module: universal-markøren gjennom universalApiHeaders(); backend avviser enhver slik forespørsel hvis den normaliserte stien ikke starter med /api/. Det er den serverhåndhevede markør-gaten — ikke validate-mønsteret — som gir strukturell inneslutning. Punktsegmenter avvises fortsatt i UI for tydelig brukerfeil, i begge former (%2e og . / ..).",
+        "url": "/api/{{parameters.url}}",
+        "method": "{{parameters.method}}",
+        "headers": {
+            "{{...}}": "{{fn.universalApiHeaders(parameters.headers)}}"
+        },
+        "qs": {
+            "{{...}}": "{{toCollection(parameters.qs, 'key', 'value')}}"
+        },
+        "body": "{{parameters.body}}",
+        "response": {
+            "output": {
+                "statusCode": "{{statusCode}}",
+                "headers": "{{headers}}",
+                "body": "{{body}}"
+            }
+        }
+    },
+    "interface": [
+        {
+            "name": "statusCode",
+            "type": "number",
+            "label": "Status code"
+        },
+        {
+            "name": "headers",
+            "type": "collection",
+            "label": "Response headers"
+        },
+        {
+            "name": "body",
+            "type": "any",
+            "label": "Response body"
+        }
+    ]
+}

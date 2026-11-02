@@ -1,71 +1,128 @@
 {
     "name": "get_risk_score",
     "label": "Get risk score",
-    "description": "Get a transparent 0-100 risk score with level (lav/moderat/høy/kritisk) and a component breakdown (FIV status, financial trend, announcement signals). A decision-ready enrichment layer, not a raw registry lookup.",
+    "description": "Retrieves a transparent risk score (0–100) with level (lav/moderat/høy/kritisk) and a component breakdown (distress/FIV status, financial trend, announcement signals). A decision-ready enrichment layer, not a raw registry lookup. Risk-scoring gates are failed Make actions: HTTP 403 for missing entitlement, unconfirmed disclaimer or runtime-control rejection; HTTP 404 for company_not_found; HTTP 422 for enk_not_supported or blocked_enk (ENK/NUF); and HTTP 503 for orgform_unavailable. Configure the error/Run-after path for all four statuses. Gate responses never contain a score or risk level; only consume those fields after a successful HTTP 200 action. A score can still be returned when ordinary model inputs are missing — read data_gaps before acting on it, and observe the disclaimer, which forbids credit assessment and automated negative decisions.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number. Note: risk scoring is a marketplace-gated feature. Until your account has it enabled you must first confirm the pre-screening disclaimer (POST /api/v1/risikoscoring/confirm-disclaimer), otherwise this action returns 403.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/risikoscoring/score/{{parameters.orgnr}}",
+        "url": "/api/v1/risikoscoring/score/{{parameters.orgnr}}",
         "method": "GET",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-        {"name": "score", "type": "uinteger", "label": "Risikoscore (0-100)"},
-        {"name": "level", "type": "text", "label": "Nivå (lav/moderat/høy/kritisk)"},
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "score",
+            "type": "number",
+            "label": "Risk score 0-100"
+        },
+        {
+            "name": "risk_level",
+            "type": "text",
+            "label": "Risk level (lav/moderat/høy/kritisk)"
+        },
+        {
+            "name": "risk_level_en",
+            "type": "text",
+            "label": "Risk level (English)"
+        },
+        {
+            "name": "error",
+            "type": "text",
+            "label": "Legacy compatibility field; current gates fail the action"
+        },
+        {
+            "name": "organisasjonsform",
+            "type": "text",
+            "label": "Legacy gate context; current gates fail the action"
+        },
         {
             "name": "components",
             "type": "array",
-            "label": "Komponenter",
+            "label": "Component breakdown",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "kode", "type": "text", "label": "Kode"},
-                    {"name": "tittel", "type": "text", "label": "Tittel"},
-                    {"name": "vekt", "type": "number", "label": "Vekt"},
-                    {"name": "verdi", "type": "number", "label": "Verdi"},
-                    {"name": "forklaring", "type": "text", "label": "Forklaring"}
+                    {
+                        "name": "component_id",
+                        "type": "text",
+                        "label": "Component id"
+                    },
+                    {
+                        "name": "label",
+                        "type": "text",
+                        "label": "Label"
+                    },
+                    {
+                        "name": "points",
+                        "type": "number",
+                        "label": "Points"
+                    },
+                    {
+                        "name": "max_points",
+                        "type": "number",
+                        "label": "Max points"
+                    },
+                    {
+                        "name": "note",
+                        "type": "text",
+                        "label": "Note"
+                    }
                 ]
             }
         },
         {
             "name": "sources",
             "type": "array",
-            "label": "Kilder",
-            "spec": {"type": "text"}
+            "label": "Sources used"
+        },
+        {
+            "name": "data_gaps",
+            "type": "array",
+            "label": "Missing inputs — the score is computed DESPITE these"
+        },
+        {
+            "name": "disclaimer",
+            "type": "text",
+            "label": "Usage restriction: not for credit assessment or automated negative decisions"
         }
     ],
     "samples": {
         "orgnr": "999999999",
         "score": 42,
-        "level": "moderat",
+        "risk_level": "moderat",
         "components": [
-            {"kode": "fiv_status", "tittel": "Foretak i vanskeligheter", "vekt": 0.4, "verdi": 0.0, "forklaring": "Ikke i vanskeligheter"},
-            {"kode": "regnskap_trend", "tittel": "Regnskapstrend", "vekt": 0.3, "verdi": 0.5, "forklaring": "Fallende driftsresultat siste 2 år"}
+            {
+                "component_id": "fiv_status",
+                "label": "Foretak i vanskeligheter",
+                "points": 0,
+                "max_points": 40,
+                "note": "Ikke i vanskeligheter"
+            }
         ],
-        "sources": ["fiv", "regnskap", "kunngjoringer"]
+        "sources": [
+            "fiv",
+            "regnskap",
+            "kunngjoringer"
+        ]
     }
 }

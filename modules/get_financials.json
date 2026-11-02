@@ -1,91 +1,192 @@
 {
     "name": "get_financials",
     "label": "Get financials",
-    "description": "Get annual financial statements and key figures for a company. Returns revenue, profit, equity and key ratios per year.",
+    "description": "Retrieves financial history (operating revenue, operating profit, profit for the year, total assets, equity and liabilities) for up to 10 years back. Returns ONE statement type per call: company accounts (SELSKAP) when they exist, otherwise consolidated group accounts (KONSERN). The regnskapstype output field tells you which set you received.",
     "connection": "apiKey",
     "type": "action",
+    "crud": "read",
     "parameters": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
             "name": "years",
             "type": "uinteger",
-            "label": "Years back",
-            "default": 3,
+            "label": "Years of history",
+            "default": 5,
+            "help": "Number of accounting years to return (1-10).",
             "validate": {
                 "min": 1,
                 "max": 10
-            },
-            "help": "Number of historical years to include (1-10)."
+            }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/financials",
+        "url": "/api/regnskap/{{parameters.orgnr}}/historikk",
         "method": "GET",
+        "response": {
+            "output": "{{body}}"
+        },
         "qs": {
             "years": "{{parameters.years}}"
-        },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
-        "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
         }
     },
     "interface": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Organization number"
         },
         {
-            "name": "ar_rapporter",
+            "name": "regnskapstype",
+            "type": "text",
+            "label": "Statement type (SELSKAP/KONSERN)"
+        },
+        {
+            "name": "antall_ansatte",
+            "type": "uinteger",
+            "label": "Current headcount (not tied to an accounting year)"
+        },
+        {
+            "name": "items",
             "type": "array",
-            "label": "Årsrapporter",
+            "label": "Accounting years, newest first",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "ar", "type": "uinteger", "label": "År"},
-                    {"name": "omsetning", "type": "number", "label": "Omsetning"},
-                    {"name": "driftsresultat", "type": "number", "label": "Driftsresultat"},
-                    {"name": "resultat_for_skatt", "type": "number", "label": "Resultat før skatt"},
-                    {"name": "arsresultat", "type": "number", "label": "Årsresultat"},
-                    {"name": "egenkapital", "type": "number", "label": "Egenkapital"},
-                    {"name": "sum_eiendeler", "type": "number", "label": "Sum eiendeler"},
-                    {"name": "egenkapitalandel", "type": "number", "label": "Egenkapitalandel (%)"},
-                    {"name": "likviditetsgrad", "type": "number", "label": "Likviditetsgrad"}
+                    {
+                        "name": "regnskapsar",
+                        "type": "uinteger",
+                        "label": "Accounting year"
+                    },
+                    {
+                        "name": "driftsinntekter",
+                        "type": "number",
+                        "label": "Operating revenue"
+                    },
+                    {
+                        "name": "driftsresultat",
+                        "type": "number",
+                        "label": "Operating profit"
+                    },
+                    {
+                        "name": "aarsresultat",
+                        "type": "number",
+                        "label": "Profit for the year"
+                    },
+                    {
+                        "name": "egenkapital",
+                        "type": "number",
+                        "label": "Equity"
+                    },
+                    {
+                        "name": "sum_gjeld",
+                        "type": "number",
+                        "label": "Total liabilities"
+                    },
+                    {
+                        "name": "sum_eiendeler",
+                        "type": "number",
+                        "label": "Total assets"
+                    }
                 ]
             }
+        },
+        {
+            "name": "paywall",
+            "type": "collection",
+            "label": "Paywall diagnosis — present only when the raw figures were withheld; empty for callers with an active plan",
+            "spec": [
+                {
+                    "name": "metrics_omitted",
+                    "type": "boolean",
+                    "label": "Raw figures were withheld: items is empty and the per-year amounts are absent"
+                },
+                {
+                    "name": "headcount_omitted",
+                    "type": "boolean",
+                    "label": "A current headcount existed but was withheld. False means the register simply had none — check this before reading an empty headcount as paywalled"
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "label": "Why the figures were withheld: tier_required (the producer states an active API/MCP/machine plan is needed) or verification_unavailable (entitlement could not be verified, so the response failed closed — this is NOT proof that the account lacks a subscription)"
+                },
+                {
+                    "name": "message",
+                    "type": "text",
+                    "label": "Human-readable explanation of the paywall decision"
+                },
+                {
+                    "name": "available_year",
+                    "type": "uinteger",
+                    "label": "Most recent accounting year that exists behind the paywall"
+                }
+            ]
+        },
+        {
+            "name": "freshness",
+            "type": "collection",
+            "label": "Hydration state — poll poll_url while state is queued/pending/running",
+            "spec": [
+                {
+                    "name": "state",
+                    "type": "text",
+                    "label": "State: none/queued/pending/running/done/failed"
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "label": "Why the job was queued"
+                },
+                {
+                    "name": "last_attempt_at",
+                    "type": "text",
+                    "label": "Last attempt (timestamp)"
+                },
+                {
+                    "name": "last_success_at",
+                    "type": "text",
+                    "label": "Last success (timestamp)"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "Error kind, when state is failed"
+                },
+                {
+                    "name": "poll_url",
+                    "type": "text",
+                    "label": "URL to poll until state leaves queued/pending/running"
+                }
+            ]
+        },
+        {
+            "name": "hydrating",
+            "type": "boolean",
+            "label": "History is still being built — items may be incomplete"
+        },
+        {
+            "name": "count",
+            "type": "uinteger",
+            "label": "Number of years returned"
+        },
+        {
+            "name": "total_available_years",
+            "type": "uinteger",
+            "label": "Total years available"
+        },
+        {
+            "name": "available_years",
+            "type": "array",
+            "label": "Which years exist"
         }
-    ],
-    "samples": {
-        "orgnr": "999999999",
-        "ar_rapporter": [
-            {
-                "ar": 2025,
-                "omsetning": 18500000,
-                "driftsresultat": 2400000,
-                "resultat_for_skatt": 2350000,
-                "arsresultat": 1820000,
-                "egenkapital": 8400000,
-                "sum_eiendeler": 14200000,
-                "egenkapitalandel": 59.2,
-                "likviditetsgrad": 2.1
-            }
-        ]
-    }
+    ]
 }

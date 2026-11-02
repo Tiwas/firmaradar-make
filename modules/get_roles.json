@@ -1,88 +1,147 @@
 {
     "name": "get_roles",
     "label": "Get roles",
-    "description": "Get board members, managing director and proxy holders for a company. Optionally include retired roles.",
+    "description": "Retrieves role holders for a company — CEO, chair of the board, board members, power of procuration, authorized signatories. Can filter by role type and include people who have resigned.",
     "connection": "apiKey",
     "type": "action",
+    "crud": "read",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
+            "help": "Filter by role type. Empty = all roles.",
             "name": "role_type",
             "type": "select",
             "label": "Role type",
-            "required": true,
-            "default": "all",
+            "default": "",
             "options": [
-                {"label": "All", "value": "all"},
-                {"label": "Board", "value": "board"},
-                {"label": "Managing director", "value": "managing_director"},
-                {"label": "Proxy", "value": "proxy"}
+                {
+                    "label": "All roles",
+                    "value": ""
+                },
+                {
+                    "label": "CEO / general manager",
+                    "value": "daglig_leder"
+                },
+                {
+                    "label": "Chair of the board",
+                    "value": "styreleder"
+                },
+                {
+                    "label": "Board member",
+                    "value": "styremedlem"
+                },
+                {
+                    "label": "Deputy board member",
+                    "value": "varamedlem"
+                },
+                {
+                    "label": "Power of procuration",
+                    "value": "prokura"
+                },
+                {
+                    "label": "Signature (authorized signatory)",
+                    "value": "signatur"
+                },
+                {
+                    "label": "Auditor",
+                    "value": "revisor"
+                }
             ]
         },
         {
-            "name": "include_retired",
+            "help": "Include people who have resigned from the role.",
+            "name": "include_historic",
             "type": "boolean",
-            "label": "Include retired roles",
-            "default": false,
-            "help": "Include historic role-holders that are no longer in position."
+            "label": "Include resigned",
+            "default": false
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/roles",
+        "url": "/api/v1/company/{{parameters.orgnr}}/roles",
         "method": "GET",
         "qs": {
-            "role_type": "{{parameters.role_type}}",
-            "include_retired": "{{if(parameters.include_retired, 1, 0)}}"
-        },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
+            "include_historic": "{{if(parameters.include_historic, '1', '')}}",
+            "role_type": "{{parameters.role_type}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Organization number"
         },
         {
-            "name": "roller",
+            "name": "roles",
             "type": "array",
-            "label": "Roller",
+            "label": "Roles",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "navn", "type": "text", "label": "Navn"},
-                    {"name": "rolle", "type": "text", "label": "Rolle"},
-                    {"name": "fra_dato", "type": "date", "label": "Fra"},
-                    {"name": "til_dato", "type": "date", "label": "Til (hvis fratrådt)"},
-                    {"name": "fodselsaar", "type": "uinteger", "label": "Fødselsår"}
+                    {
+                        "name": "rolle_type",
+                        "type": "text",
+                        "label": "Role type (Styreleder, Daglig leder, ...)"
+                    },
+                    {
+                        "name": "rolle_type_en",
+                        "type": "text",
+                        "label": "Role type (English)"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Name"
+                    },
+                    {
+                        "name": "fodselsaar",
+                        "type": "text",
+                        "label": "Birth year (4 digits, or empty)"
+                    },
+                    {
+                        "name": "fra_dato",
+                        "type": "text",
+                        "label": "From date (YYYY-MM-DD)"
+                    },
+                    {
+                        "name": "til_dato",
+                        "type": "text",
+                        "label": "To date (YYYY-MM-DD, empty if active)"
+                    },
+                    {
+                        "name": "signatur_alene",
+                        "type": "boolean",
+                        "label": "Sole signature rights"
+                    },
+                    {
+                        "name": "is_active",
+                        "type": "boolean",
+                        "label": "Currently active"
+                    }
                 ]
             }
+        },
+        {
+            "name": "total_count",
+            "type": "uinteger",
+            "label": "Total number of roles"
+        },
+        {
+            "name": "cached",
+            "type": "boolean",
+            "label": "Served from cache"
         }
-    ],
-    "samples": {
-        "orgnr": "999999999",
-        "roller": [
-            {"navn": "Person Nordmann", "rolle": "Styreleder", "fra_dato": "2018-03-15", "til_dato": null, "fodselsaar": 1972},
-            {"navn": "Annen Person", "rolle": "Daglig leder", "fra_dato": "2020-06-01", "til_dato": null, "fodselsaar": 1985}
-        ]
-    }
+    ]
 }

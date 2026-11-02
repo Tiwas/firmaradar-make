@@ -28,7 +28,7 @@
         "output": "{{body}}"
     },
     "attach": {
-        "url": "{{connection.baseUrl}}/api/v1/monitoring/webhooks",
+        "url": "/api/v1/monitoring/webhooks",
         "method": "POST",
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",
@@ -51,7 +51,7 @@
         }
     },
     "detach": {
-        "url": "{{connection.baseUrl}}/api/v1/monitoring/webhooks/{{webhook.id}}",
+        "url": "/api/v1/monitoring/webhooks/{{webhook.id}}",
         "method": "DELETE",
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",

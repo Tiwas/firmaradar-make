@@ -74,10 +74,13 @@
     ],
     "api": {
         "condition": "{{if(parameters.deliverySecret, get(headers, 'authorization') === ('Bearer ' + parameters.deliverySecret), true)}}",
-        "output": "{{body}}"
+        "output": {
+            "{{...}}": "{{body}}",
+            "deliveryId": "{{ifempty(get(headers, 'x-firmaradar-delivery-id'), null)}}"
+        }
     },
     "attach": {
-        "url": "{{connection.baseUrl}}/api/v1/nace/subscriptions",
+        "url": "/api/v1/nace/subscriptions",
         "method": "POST",
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",
@@ -106,7 +109,7 @@
         }
     },
     "detach": {
-        "url": "{{connection.baseUrl}}/api/v1/nace/subscriptions/{{webhook.id}}",
+        "url": "/api/v1/nace/subscriptions/{{webhook.id}}",
         "method": "DELETE",
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",

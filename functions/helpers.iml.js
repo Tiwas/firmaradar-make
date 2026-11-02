@@ -77,3 +77,42 @@ module.exports.isHighRiskStatus = function isHighRiskStatus(status) {
     const s = status.toLowerCase().trim();
     return s === 'match' || s === 'high_risk' || s === 'review';
 };
+
+/**
+ * Bygg ekstra-headere for den universelle API-modulen uten å la brukeren
+ * overstyre identiteten eller DPA-kontrollene dens.
+ *
+ * DPA-gatete AML-stier må bruke dedikerte Make-moduler. De viser formål og
+ * bekreftelse eksplisitt i UI-et; den universelle modulen kan ikke det.
+ * Returverdien setter derfor en fast markør som backend avviser på de stiene.
+ * Støtter både Make-arrayet ({key, value}) og objektformen IML kan gi ved
+ * mappede verdier, og sammenligner headernavn uten hensyn til store/små
+ * bokstaver.
+ *
+ * @param {Array|object} entries - Brukerens valgfrie ekstra-headere.
+ * @returns {object}
+ */
+module.exports.universalApiHeaders = function universalApiHeaders(entries) {
+    const reserved = new Set([
+        'authorization',
+        'x-fr-make-module',
+        'x-fr-purpose',
+        'x-fr-dpa-confirmed',
+        'x-fr-purpose-encoding'
+    ]);
+    const headers = {'X-FR-Make-Module': 'universal'};
+    const add = function(key, value) {
+        if (typeof key !== 'string' || !key.trim() || reserved.has(key.trim().toLowerCase())) {
+            return;
+        }
+        headers[key] = value;
+    };
+    if (Array.isArray(entries)) {
+        entries.forEach(function(entry) {
+            if (entry && typeof entry === 'object') add(entry.key, entry.value);
+        });
+    } else if (entries && typeof entries === 'object') {
+        Object.keys(entries).forEach(function(key) { add(key, entries[key]); });
+    }
+    return headers;
+};

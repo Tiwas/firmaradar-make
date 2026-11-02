@@ -1,42 +1,653 @@
 {
     "name": "find_shared_connections",
     "label": "Find shared connections",
-    "description": "Analyse two or more companies and return the people, owners and addresses they have in common (link/koblingsanalyse). Useful for detecting hidden relationships across a set of counterparties.",
+    "description": "Analyses two or more companies and return the people, owners and addresses they have in common (link analysis).",
     "connection": "apiKey",
     "type": "action",
+    "public": false,
     "parameters": [
         {
             "name": "orgnrs",
             "type": "text",
-            "label": "Organisation numbers",
+            "label": "Organization numbers",
             "required": true,
-            "help": "Comma-separated list of at least 2 nine-digit organisation numbers (e.g. 923609016,811912672)."
+            "help": "Comma-separated list of at least 2 nine-digit orgnr (e.g. 923609016,811912672)."
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/find-shared-connections",
+        "url": "/api/v1/find-shared-connections",
         "method": "GET",
         "qs": {
             "orgnrs": "{{parameters.orgnrs}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
-    "samples": {
-        "orgnrs": ["923609016", "811912672"],
-        "shared": {
-            "persons": [{"navn": "Ola Nordmann", "companies": ["923609016", "811912672"]}],
-            "owners": [],
-            "addresses": []
+    "interface": [
+        {
+            "name": "selskaper",
+            "type": "array",
+            "label": "Companies analysed (orgnr + name)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Company name"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "felles_personer",
+            "type": "array",
+            "label": "People shared between the companies",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "person_key",
+                        "type": "text",
+                        "label": "Stable person key"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Name"
+                    },
+                    {
+                        "name": "fodselsaar",
+                        "type": "text",
+                        "label": "Birth year"
+                    },
+                    {
+                        "name": "roller",
+                        "type": "array",
+                        "label": "Roles held across the companies"
+                    },
+                    {
+                        "name": "antall_selskaper",
+                        "type": "uinteger",
+                        "label": "Number of companies in common"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "The companies",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "roller",
+                                    "type": "array",
+                                    "label": "Roles in this company"
+                                },
+                                {
+                                    "name": "aktiv",
+                                    "type": "boolean",
+                                    "label": "Role is currently active"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "kun_historisk",
+                        "type": "boolean",
+                        "label": "🚨 Every link is HISTORICAL — presenting this as a current relationship is wrong"
+                    },
+                    {
+                        "name": "er_revisor",
+                        "type": "boolean",
+                        "label": "The shared role is auditor (REVI)"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "felles_adresser",
+            "type": "array",
+            "label": "Addresses shared between the companies",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "nokkel",
+                        "type": "text",
+                        "label": "Normalised key"
+                    },
+                    {
+                        "name": "label",
+                        "type": "text",
+                        "label": "The shared address"
+                    },
+                    {
+                        "name": "antall_selskaper",
+                        "type": "uinteger",
+                        "label": "Number of companies sharing it"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "The companies",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "aktiv",
+                                    "type": "boolean",
+                                    "label": "Relation is currently active"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "kun_historisk",
+                        "type": "boolean",
+                        "label": "Every link is historical — no active relation remains"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "felles_revisor_selskap",
+            "type": "array",
+            "label": "Shared auditor companies",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "nokkel",
+                        "type": "text",
+                        "label": "Normalised key"
+                    },
+                    {
+                        "name": "label",
+                        "type": "text",
+                        "label": "Auditor company name"
+                    },
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Auditor's organization number"
+                    },
+                    {
+                        "name": "klient_antall",
+                        "type": "uinteger",
+                        "label": "Clients the auditor has — a small auditor connects strongly, a large national firm weakly"
+                    },
+                    {
+                        "name": "antall_ansatte",
+                        "type": "uinteger",
+                        "label": "Employees at the auditor"
+                    },
+                    {
+                        "name": "antall_selskaper",
+                        "type": "uinteger",
+                        "label": "How many of the analysed companies share it"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "The companies",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "aktiv",
+                                    "type": "boolean",
+                                    "label": "Relation is currently active"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "kun_historisk",
+                        "type": "boolean",
+                        "label": "Every link is historical"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "felles_eiere",
+            "type": "array",
+            "label": "Shared owners",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "eier_key",
+                        "type": "text",
+                        "label": "Owner key — stable identity across the companies"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Owner name"
+                    },
+                    {
+                        "name": "type",
+                        "type": "text",
+                        "label": "Owner type — 'person' or 'business'; 'company' is not returned"
+                    },
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number — set for company owners"
+                    },
+                    {
+                        "name": "antall_selskaper",
+                        "type": "number",
+                        "label": "Number of the queried companies this owner appears in"
+                    },
+                    {
+                        "name": "max_pct",
+                        "type": "number",
+                        "label": "Largest ownership share held in any of them (%)"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "Companies in common",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "pct",
+                                    "type": "number",
+                                    "label": "Stake the shared owner holds in this company (%)"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "felles_morselskap",
+            "type": "array",
+            "label": "Shared parent companies",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Parent organization number"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Parent name"
+                    },
+                    {
+                        "name": "antall_selskaper",
+                        "type": "uinteger",
+                        "label": "How many of the analysed companies it owns"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "The companies it owns",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "pct",
+                                    "type": "number",
+                                    "label": "Stake held by the parent (%)"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "sirkulaer_eierskap",
+            "type": "array",
+            "label": "Circular ownership detected",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "a_orgnr",
+                        "type": "text",
+                        "label": "Company A — organization number"
+                    },
+                    {
+                        "name": "a_navn",
+                        "type": "text",
+                        "label": "Company A — name"
+                    },
+                    {
+                        "name": "b_orgnr",
+                        "type": "text",
+                        "label": "Company B — organization number"
+                    },
+                    {
+                        "name": "b_navn",
+                        "type": "text",
+                        "label": "Company B — name"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "eier_kanter",
+            "type": "array",
+            "label": "Ownership edges",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "eier_orgnr",
+                        "type": "text",
+                        "label": "Owner organization number"
+                    },
+                    {
+                        "name": "eier_navn",
+                        "type": "text",
+                        "label": "Owner name"
+                    },
+                    {
+                        "name": "eid_orgnr",
+                        "type": "text",
+                        "label": "Owned organization number"
+                    },
+                    {
+                        "name": "eid_navn",
+                        "type": "text",
+                        "label": "Owned company name"
+                    },
+                    {
+                        "name": "pct",
+                        "type": "number",
+                        "label": "Stake (%)"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "stiftet_tett",
+            "type": "array",
+            "label": "Companies founded close together in time",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "antall_selskaper",
+                        "type": "uinteger",
+                        "label": "Companies founded close together"
+                    },
+                    {
+                        "name": "fra_dato",
+                        "type": "text",
+                        "label": "Earliest founding date in the cluster"
+                    },
+                    {
+                        "name": "til_dato",
+                        "type": "text",
+                        "label": "Latest founding date in the cluster"
+                    },
+                    {
+                        "name": "spenn_dager",
+                        "type": "uinteger",
+                        "label": "Span in days"
+                    },
+                    {
+                        "name": "selskaper",
+                        "type": "array",
+                        "label": "The companies",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "orgnr",
+                                    "type": "text",
+                                    "label": "Organization number"
+                                },
+                                {
+                                    "name": "navn",
+                                    "type": "text",
+                                    "label": "Company name"
+                                },
+                                {
+                                    "name": "stiftelsesdato",
+                                    "type": "text",
+                                    "label": "Founding date (YYYY-MM-DD)"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "risiko_indikatorer",
+            "type": "array",
+            "label": "Risk indicators — the facts and weights behind risiko_score",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "kode",
+                        "type": "text",
+                        "label": "Indicator code"
+                    },
+                    {
+                        "name": "tittel",
+                        "type": "text",
+                        "label": "Title"
+                    },
+                    {
+                        "name": "vekt",
+                        "type": "number",
+                        "label": "Weight"
+                    },
+                    {
+                        "name": "antall",
+                        "type": "uinteger",
+                        "label": "Number of occurrences"
+                    },
+                    {
+                        "name": "bidrag",
+                        "type": "number",
+                        "label": "Contribution to the score"
+                    },
+                    {
+                        "name": "forklaring",
+                        "type": "text",
+                        "label": "Why this indicator fired"
+                    },
+                    {
+                        "name": "params",
+                        "type": "collection",
+                        "label": "Parameters behind the calculation"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "risiko_score",
+            "type": "number",
+            "label": "Risk score"
+        },
+        {
+            "name": "risiko_niva",
+            "type": "text",
+            "label": "Risk level — 'lav', 'middels' or 'hoy'; not 'moderat' or 'høy'"
+        },
+        {
+            "name": "graf",
+            "type": "collection",
+            "label": "Graph of nodes and edges",
+            "spec": [
+                {
+                    "name": "noder",
+                    "type": "array",
+                    "label": "Nodes",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "Node id, e.g. 'selskap:923609016' or 'person:<key>'"
+                            },
+                            {
+                                "name": "type",
+                                "type": "text",
+                                "label": "selskap / person / revisor_person / adresse / revisor_selskap / eier_selskap / eier_person"
+                            },
+                            {
+                                "name": "label",
+                                "type": "text",
+                                "label": "Display label"
+                            },
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number — company nodes only"
+                            },
+                            {
+                                "name": "kun_historisk",
+                                "type": "boolean",
+                                "label": "Only historical — person nodes only"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "kanter",
+                    "type": "array",
+                    "label": "Edges",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "source",
+                                "type": "text",
+                                "label": "Source node id"
+                            },
+                            {
+                                "name": "target",
+                                "type": "text",
+                                "label": "Target node id"
+                            },
+                            {
+                                "name": "type",
+                                "type": "text",
+                                "label": "rolle / adresse / revisor / eier"
+                            },
+                            {
+                                "name": "roller",
+                                "type": "array",
+                                "label": "Roles — 'rolle' edges only"
+                            },
+                            {
+                                "name": "aktiv",
+                                "type": "boolean",
+                                "label": "Role is active — 'rolle' edges only"
+                            },
+                            {
+                                "name": "pct",
+                                "type": "number",
+                                "label": "Ownership percentage — 'eier' edges only"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "meta",
+            "type": "collection",
+            "label": "Analysis metadata",
+            "spec": [
+                {
+                    "name": "antall_selskaper",
+                    "type": "uinteger",
+                    "label": "Companies analysed"
+                },
+                {
+                    "name": "felles_eiere_avkuttet",
+                    "type": "boolean",
+                    "label": "Shared-owner list was CAPPED — felles_eiere is incomplete"
+                },
+                {
+                    "name": "delt_eier_min_pct",
+                    "type": "number",
+                    "label": "Minimum stake counted as a shared owner (%)"
+                },
+                {
+                    "name": "disclaimer",
+                    "type": "text",
+                    "label": "Disclaimer attached to the analysis"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "Set to 'minst_to_selskaper_kreves' when fewer than two companies resolved"
+                }
+            ]
         }
-    }
+    ]
 }

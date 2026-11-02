@@ -1,16 +1,16 @@
 {
     "name": "get_aml_report",
     "label": "Get AML report (poll)",
-    "description": "Poll the status and result of an asynchronous AML report started with 'Start AML report'. Pass the report_id; returns status (pending/running/done/failed). When 'done' it includes the AML risk score (0-100), level (low/medium/high) and links to the stored report; when 'failed' it includes the error reason. Chain this after 'Start AML report' in a scenario (add a delay/repeater until status is done or failed).",
+    "description": "Poll the status and result of an asynchronous AML report started with 'Start AML report'. Map the `rapport_id` value returned by 'Start AML report' into this module's Job ID field; returns status (pending/running/done/failed). When 'done' it includes the AML risk score (0-100), level (low/medium/high) and links to the stored report; when 'failed' it includes the error reason. Chain this after 'Start AML report' in a scenario (add a delay/repeater until status is done or failed).",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
             "name": "report_id",
             "type": "text",
-            "label": "Report ID",
+            "label": "Job ID (rapport_id)",
             "required": true,
-            "help": "The report_id returned by 'Start AML report'.",
+            "help": "The `rapport_id` returned by 'Start AML report'. ⚠️ Map the `rapport_id` field — NOT `report_id`. 'Start AML report' does not return a field called `report_id`; this module's own `report_id` output is the finished report, not the value to poll with.",
             "validate": {
                 "pattern": "^[0-9a-f]{32}$",
                 "patternErrorMessage": "Report ID must be a 32-character hex job id."
@@ -18,30 +18,62 @@
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/aml/report/{{parameters.report_id}}",
+        "url": "/api/v1/aml/report/{{parameters.report_id}}",
         "method": "GET",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
             "output": "{{body}}",
             "error": {
                 "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
             }
-        }
+        },
+        "//": "URL-en er RELATIV mot app-basen, som er hardkodet til https://firmaradar.no i app.json. Den var absolutt og bygget fra {{connection.baseUrl}} — en verdi live-connection-en ikke lenger returnerer (målt 19-08: response.data er null). En rutinemessig all-modul-push ville derfor skrevet en mal som interpolerer ingenting over en fungerende live-kjede. Live står allerede riktig; det var repoet som hadde divergert."
     },
     "interface": [
-        {"name": "rapport_id", "type": "text", "label": "Job-ID"},
-        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-        {"name": "status", "type": "text", "label": "Status (pending/running/done/failed)"},
-        {"name": "report_id", "type": "text", "label": "Ferdig rapport-ID (når done)"},
-        {"name": "score", "type": "number", "label": "AML-score 0-100 (når done)"},
-        {"name": "level", "type": "text", "label": "Nivå low/medium/high (når done)"},
-        {"name": "error", "type": "text", "label": "Feilårsak (når failed)"},
-        {"name": "json_url", "type": "text", "label": "Rapport-JSON (når done)"},
-        {"name": "pdf_url", "type": "text", "label": "Rapport-PDF (når done)"}
+        {
+            "name": "rapport_id",
+            "type": "text",
+            "label": "Job ID — poll with this"
+        },
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status (pending/running/done/failed)"
+        },
+        {
+            "name": "report_id",
+            "type": "text",
+            "label": "Final report ID (not the polling ID)"
+        },
+        {
+            "name": "score",
+            "type": "number",
+            "label": "AML score 0–100 (when done)"
+        },
+        {
+            "name": "level",
+            "type": "text",
+            "label": "Level low/medium/high (when done)"
+        },
+        {
+            "name": "error",
+            "type": "text",
+            "label": "Error reason (when failed)"
+        },
+        {
+            "name": "json_url",
+            "type": "text",
+            "label": "Report JSON (when done)"
+        },
+        {
+            "name": "pdf_url",
+            "type": "text",
+            "label": "Report PDF (when done)"
+        }
     ],
     "samples": {
         "rapport_id": "0123456789abcdef0123456789abcdef",
