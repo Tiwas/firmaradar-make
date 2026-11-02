@@ -1,0 +1,58 @@
+[
+    {
+        "label": "Companies",
+        "modules": [
+            "getCompany",
+            "getFinancials",
+            "getOwnership",
+            "getRoles",
+            "getRecentChanges",
+            "getAnnouncements",
+            "getCompanyIp",
+            "getKonsernstotte",
+            "compareCompanies"
+        ]
+    },
+    {
+        "label": "People",
+        "modules": [
+            "getPersonRoles",
+            "getPersonCompanies"
+        ]
+    },
+    {
+        "label": "Risk and signals",
+        "modules": [
+            "getSignals",
+            "getRiskScore",
+            "getRiskScoreBulk",
+            "checkFiv",
+            "checkFivBulk"
+        ]
+    },
+    {
+        "label": "AML",
+        "modules": [
+            "checkAmlPep",
+            "startAmlReport",
+            "getAmlReport"
+        ]
+    },
+    {
+        "label": "Search",
+        "modules": [
+            "searchCompanies",
+            "searchPersons",
+            "searchAnnouncements",
+            "listCompaniesInNace",
+            "findRelatedCompanies",
+            "findSharedConnections"
+        ]
+    },
+    {
+        "label": "Other",
+        "modules": [
+            "makeApiCall"
+        ]
+    }
+]

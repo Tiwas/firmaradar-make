@@ -1,92 +1,143 @@
 {
     "name": "list_companies_in_nace",
     "label": "List companies in NACE industry",
-    "description": "List Norwegian companies in a NACE industry code (or prefix), optionally filtered by status, municipality and minimum employees. For prospecting and segmenting a pipeline by industry.",
+    "description": "Lists Norwegian companies in a NACE industry code (or prefix), optionally filtered by status, municipality and minimum employees. Returns body.items[] as iterable bundles.",
     "connection": "apiKey",
     "type": "search",
+    "crud": "read",
+    "public": false,
     "parameters": [
         {
             "name": "code",
             "type": "text",
             "label": "NACE code or prefix",
             "required": true,
-            "help": "NACE code or prefix, e.g. '47' (retail) or '47.11' (grocery retail)."
+            "help": "e.g. '47' (retail) or '47.11' (grocery retail)."
         },
         {
             "name": "status",
             "type": "select",
             "label": "Status",
             "options": [
-                {"label": "Active", "value": "aktiv"},
-                {"label": "Bankrupt", "value": "konkurs"},
-                {"label": "Under dissolution", "value": "under_avvikling"},
-                {"label": "Deregistered", "value": "avregistrert"}
+                {
+                    "label": "Active",
+                    "value": "aktiv"
+                },
+                {
+                    "label": "Bankrupt",
+                    "value": "konkurs"
+                },
+                {
+                    "label": "Under dissolution",
+                    "value": "under_avvikling"
+                }
             ],
-            "help": "Optional company-status filter."
+            "help": "Active, bankrupt or under dissolution. 'Deregistered' is not offered: the endpoint has no predicate for it and would silently return the unfiltered list."
         },
         {
             "name": "kommune",
             "type": "text",
-            "label": "Municipality number",
-            "help": "Optional 4-digit municipality number filter."
+            "label": "Municipality number"
         },
         {
             "name": "min_ansatte",
             "type": "uinteger",
-            "label": "Minimum employees",
-            "help": "Optional lower bound on the registered number of employees."
+            "label": "Minimum employees"
         },
         {
             "name": "limit",
             "type": "uinteger",
             "label": "Max results",
-            "default": 50,
-            "validate": {"min": 1, "max": 200},
-            "help": "Maximum number of companies to return per call (1-200)."
+            "default": 10,
+            "validate": {
+                "min": 1,
+                "max": 200
+            }
+        },
+        {
+            "name": "page_size",
+            "type": "uinteger",
+            "label": "API page size",
+            "help": "Optional API page size (1–200). Leave empty to use Max results. Set lower than Max results to retrieve several pages, for example 2 per page and 5 results total.",
+            "validate": {
+                "min": 1,
+                "max": 200
+            }
         },
         {
             "name": "cursor",
             "type": "text",
             "label": "Cursor",
-            "help": "Pagination cursor from a previous call's next_cursor."
+            "help": "From a previous call's next_cursor."
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/nace/{{parameters.code}}/companies",
+        "url": "/api/v1/nace/{{parameters.code}}/companies",
         "method": "GET",
         "qs": {
             "status": "{{parameters.status}}",
             "kommune": "{{parameters.kommune}}",
             "min_ansatte": "{{parameters.min_ansatte}}",
-            "limit": "{{parameters.limit}}",
+            "limit": "{{ifempty(parameters.page_size, parameters.limit)}}",
             "cursor": "{{parameters.cursor}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
+        "pagination": {
+            "qs": {
+                "cursor": "{{body.next_cursor}}"
+            },
+            "condition": "{{body.next_cursor}}"
         },
         "response": {
-            "output": "{{body.items}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "iterate": "{{body.items}}",
+            "output": {
+                "orgnr": "{{item.orgnr}}",
+                "navn": "{{item.navn}}",
+                "naeringskode": "{{item.naeringskode}}",
+                "antall_ansatte": "{{item.antall_ansatte}}",
+                "kommune": "{{item.kommune}}",
+                "status": "{{item.status}}"
+            },
+            "limit": "{{parameters.limit}}"
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisation number"},
-        {"name": "navn", "type": "text", "label": "Company name"},
-        {"name": "naeringskode", "type": "text", "label": "NACE code"},
-        {"name": "antall_ansatte", "type": "uinteger", "label": "Employees"},
-        {"name": "kommune", "type": "text", "label": "Municipality"},
-        {"name": "status", "type": "text", "label": "Status"}
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Company name"
+        },
+        {
+            "name": "naeringskode",
+            "type": "text",
+            "label": "NACE code"
+        },
+        {
+            "name": "antall_ansatte",
+            "type": "number",
+            "label": "Employees"
+        },
+        {
+            "name": "kommune",
+            "type": "text",
+            "label": "Municipality"
+        },
+        {
+            "name": "status",
+            "type": "text",
+            "label": "Status"
+        }
     ],
     "samples": {
-        "orgnr": "999999999",
-        "navn": "EKSEMPEL HANDEL AS",
-        "naeringskode": "47.111",
-        "antall_ansatte": 12,
-        "kommune": "0301",
+        "orgnr": "923609016",
+        "navn": "EQUINOR ASA",
+        "naeringskode": "06.100",
+        "antall_ansatte": 21393,
+        "kommune": "1103",
         "status": "aktiv"
     }
 }

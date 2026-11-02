@@ -1,23 +1,23 @@
 {
     "name": "compare_companies",
     "label": "Compare companies",
-    "description": "Server-side comparison of the accounting history of 1-5 companies over N years — revenue, result, equity and other key figures side by side.",
+    "description": "Compares the accounting history of 1-5 companies over N years server-side — revenue, result, equity side by side.",
     "connection": "apiKey",
     "type": "action",
+    "public": false,
     "parameters": [
         {
             "name": "orgnrs",
             "type": "array",
-            "label": "Organisation numbers (max 5)",
+            "label": "Organization numbers (max 5)",
             "required": true,
-            "help": "1-5 nine-digit Norwegian organisation numbers to compare.",
             "spec": {
-                "name": "orgnr",
+                "name": "value",
                 "type": "text",
-                "label": "Organisation number",
+                "label": "Organization number",
                 "validate": {
                     "pattern": "^[0-9]{9}$",
-                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                    "patternErrorMessage": "Must be exactly 9 digits."
                 }
             }
         },
@@ -26,47 +26,88 @@
             "type": "uinteger",
             "label": "Years",
             "default": 5,
-            "validate": {"min": 1, "max": 10},
-            "help": "Number of accounting years to compare (1-10, default 5)."
+            "validate": {
+                "min": 1,
+                "max": 10
+            }
         },
         {
             "name": "metrics",
             "type": "array",
             "label": "Metrics",
-            "help": "Optional subset of key figures to include. Leave empty for the default set.",
+            "help": "Optional subset of key figures. Leave empty for the default set.",
             "spec": {
-                "name": "metric",
+                "name": "value",
                 "type": "text",
                 "label": "Metric"
             }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/companies/compare",
+        "url": "/api/v1/companies/compare",
         "method": "POST",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
         "body": {
             "orgnrs": "{{parameters.orgnrs}}",
             "years": "{{parameters.years}}",
             "metrics": "{{parameters.metrics}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
-    "samples": {
-        "orgnrs": ["923609016", "811912672"],
-        "years": 5,
-        "companies": [
-            {"orgnr": "923609016", "navn": "EKSEMPEL AS", "years": {}}
-        ]
-    }
+    "interface": [
+        {
+            "name": "orgnrs",
+            "type": "array",
+            "label": "Organization numbers compared"
+        },
+        {
+            "name": "years",
+            "type": "array",
+            "label": "Years covered, newest first — comparison values are aligned to this order",
+            "spec": {
+                "type": "uinteger"
+            }
+        },
+        {
+            "name": "companies",
+            "type": "array",
+            "label": "Company metadata",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Company name"
+                    },
+                    {
+                        "name": "financials_by_year",
+                        "type": "collection",
+                        "label": "Figures per year"
+                    },
+                    {
+                        "name": "antall_ansatte",
+                        "type": "uinteger",
+                        "label": "Employees"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "comparison",
+            "type": "collection",
+            "label": "Comparison matrix: metric -> organization number -> aligned year values. Keys are dynamic, so map with a nested reference."
+        },
+        {
+            "name": "computed_at",
+            "type": "text",
+            "label": "Computed at (timestamp)"
+        }
+    ]
 }

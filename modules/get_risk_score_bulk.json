@@ -1,92 +1,185 @@
 {
     "name": "get_risk_score_bulk",
     "label": "Bulk: risk score",
-    "description": "Portfolio risk-scoring (0-100 + level lav/moderat/høy/kritisk + component breakdown) for up to 50 companies in one call. Each orgnr is scored independently; per-orgnr compliance-gates (ENK/NUF block, customer-confirmation required, extension disabled) are returned as a per-orgnr error instead of failing the whole batch. Each orgnr counts as one unit against your quota.",
+    "description": "Scores up to 50 companies for risk (0–100, level and component breakdown). Each orgnr is scored independently. The outer response stays 200; inspect results[].error for each company before using its score. Gate errors include invalid_orgnr, company_not_found, enk_not_supported/blocked_enk (also NUF), orgform_unavailable, kundebekreftelse_required and extension_not_active. Extension and data-provider failures can also appear in results[].error. Runtime control failures use results[].error_code (rate_limit_exceeded or compliance_gate_*); dispatcher and bulk-runner failures may have only results[].error. This module needs no external authorization. Each orgnr counts as one unit against your quota.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "1–50 nine-digit Norwegian organization numbers (orgnr). Each orgnr counts as one unit against your quota.",
             "name": "orgnrs",
-            "type": "array",
-            "label": "Organisation numbers (max 50)",
-            "required": true,
-            "help": "1-50 nine-digit Norwegian organisation numbers. Each orgnr counts as one unit against your quota.",
             "spec": {
                 "name": "orgnr",
                 "type": "text",
-                "label": "Organisation number",
+                "label": "Organization number",
                 "validate": {
                     "pattern": "^[0-9]{9}$",
-                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                    "patternErrorMessage": "Must be exactly 9 digits."
                 }
-            }
+            },
+            "type": "array",
+            "label": "Organization numbers (max 50)",
+            "required": true
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/risikoscoring/score/bulk",
+        "url": "/api/v1/risikoscoring/score/bulk",
         "method": "POST",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
         "body": {
             "orgnrs": "{{parameters.orgnrs}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
         {
             "name": "results",
-            "type": "array",
-            "label": "Per-company results",
             "spec": {
-                "type": "collection",
                 "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-                    {"name": "score", "type": "number", "label": "Score (0-100)"},
-                    {"name": "risk_level", "type": "text", "label": "Nivå (lav/moderat/høy/kritisk)"},
-                    {"name": "error", "type": "text", "label": "Per-orgnr feil (hvis noen)"},
                     {
-                        "name": "components",
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "score",
+                        "type": "number",
+                        "label": "Score (0–100)"
+                    },
+                    {
+                        "name": "risk_level",
+                        "type": "text",
+                        "label": "Level (lav/moderat/høy/kritisk)"
+                    },
+                    {
+                        "name": "organisasjonsform",
+                        "type": "text",
+                        "label": "Organization form that triggered the gate (ENK/NUF)"
+                    },
+          {
+            "name": "error",
+            "type": "text",
+            "label": "Per-orgnr error (if any)"
+          },
+          {
+            "name": "message",
+            "type": "text",
+            "label": "Human-readable runtime-control detail"
+          },
+          {
+            "name": "error_code",
+            "type": "text",
+            "label": "Stable runtime-control error code"
+          },
+          {
+            "name": "retry_after",
+            "type": "text",
+            "label": "Retry-After value when rate limited"
+          },
+          {
+            "name": "http_status",
+            "type": "number",
+            "label": "Per-orgnr HTTP status (outer bulk response stays 200)"
+          },
+          {
+            "name": "components",
                         "type": "array",
-                        "label": "Komponenter",
+                        "label": "Component breakdown",
                         "spec": {
                             "type": "collection",
                             "spec": [
-                                {"name": "id", "type": "text", "label": "Komponent-ID"},
-                                {"name": "label", "type": "text", "label": "Etikett"},
-                                {"name": "points", "type": "number", "label": "Poeng"},
-                                {"name": "max", "type": "number", "label": "Maks"},
-                                {"name": "status", "type": "text", "label": "Status"}
+                                {
+                                    "name": "component_id",
+                                    "type": "text",
+                                    "label": "Component id"
+                                },
+                                {
+                                    "name": "label",
+                                    "type": "text",
+                                    "label": "Label"
+                                },
+                                {
+                                    "name": "points",
+                                    "type": "number",
+                                    "label": "Points"
+                                },
+                                {
+                                    "name": "max_points",
+                                    "type": "number",
+                                    "label": "Max points"
+                                },
+                                {
+                                    "name": "note",
+                                    "type": "text",
+                                    "label": "Note"
+                                }
                             ]
                         }
+                    },
+                    {
+                        "name": "sources",
+                        "type": "array",
+                        "label": "Sources used"
+                    },
+                    {
+                        "name": "data_gaps",
+                        "type": "array",
+                        "label": "Missing inputs — the score is computed DESPITE these"
+                    },
+                    {
+                        "name": "disclaimer",
+                        "type": "text",
+                        "label": "Usage restriction: not for credit assessment or automated negative decisions"
                     }
-                ]
-            }
+                ],
+                "type": "collection"
+            },
+            "type": "array",
+            "label": "Per-company results"
         },
         {
             "name": "_meta",
-            "type": "collection",
-            "label": "Aggregat",
             "spec": [
-                {"name": "total_requested", "type": "number", "label": "Antall forespurt"},
-                {"name": "successful", "type": "number", "label": "Vellykket"},
-                {"name": "failed", "type": "number", "label": "Feilet"}
-            ]
+                {
+                    "name": "total_requested",
+                    "type": "number",
+                    "label": "Number requested"
+                },
+                {
+                    "name": "successful",
+                    "type": "number",
+                    "label": "Successful"
+                },
+                {
+                    "name": "failed",
+                    "type": "number",
+                    "label": "Failed"
+                }
+            ],
+            "type": "collection",
+            "label": "Aggregate"
         }
     ],
     "samples": {
         "results": [
-            {"orgnr": "999999999", "score": 22, "risk_level": "lav", "components": []},
-            {"orgnr": "998877665", "score": 71, "risk_level": "høy", "components": []}
+            {
+                "orgnr": "999999999",
+                "score": 22,
+                "risk_level": "lav",
+                "components": []
+            },
+            {
+                "orgnr": "998877665",
+                "score": 71,
+                "risk_level": "høy",
+                "components": []
+            }
         ],
-        "_meta": {"total_requested": 2, "successful": 2, "failed": 0}
+        "_meta": {
+            "total_requested": 2,
+            "successful": 2,
+            "failed": 0
+        }
     }
 }

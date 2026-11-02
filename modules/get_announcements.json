@@ -1,50 +1,52 @@
 {
     "name": "get_announcements",
     "label": "Get company announcements",
-    "description": "Get official BRREG announcements (kunngjøringer) for one company — capital changes, board changes, approved accounts, forced-dissolution notices and more.",
+    "description": "Retrieves official BRREG announcements (kunngjøringer) for one company — capital, board, approved accounts, forced-dissolution notices and more.",
     "connection": "apiKey",
     "type": "action",
+    "public": false,
     "parameters": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
             "name": "from",
             "type": "date",
             "label": "From date",
-            "help": "Earliest announcement date (YYYY-MM-DD). Default: 30 days back."
+            "help": "Default: 30 days back."
         },
         {
             "name": "to",
             "type": "date",
             "label": "To date",
-            "help": "Latest announcement date (YYYY-MM-DD). Default: today."
+            "help": "Default: today."
         },
         {
             "name": "type",
             "type": "text",
             "label": "Announcement type filter",
-            "help": "Optional case-insensitive substring on the announcement type (e.g. 'fusjon', 'kapital')."
+            "help": "Case-insensitive substring, e.g. 'fusjon', 'kapital'."
         },
         {
             "name": "limit",
             "type": "uinteger",
             "label": "Max results",
             "default": 50,
-            "validate": {"min": 1, "max": 200},
-            "help": "Maximum number of announcements to return (1-200)."
+            "validate": {
+                "min": 1,
+                "max": 200
+            }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/announcements/search",
+        "url": "/api/v1/announcements/search",
         "method": "GET",
         "qs": {
             "orgnr": "{{parameters.orgnr}}",
@@ -53,16 +55,8 @@
             "type": "{{parameters.type}}",
             "limit": "{{parameters.limit}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
@@ -73,28 +67,43 @@
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Organisation number"},
-                    {"name": "navn", "type": "text", "label": "Company name"},
-                    {"name": "dato", "type": "date", "label": "Date"},
-                    {"name": "kunngjoring_type", "type": "text", "label": "Announcement type"},
-                    {"name": "category", "type": "text", "label": "Category"},
-                    {"name": "hendelse_type", "type": "text", "label": "Event type"}
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "Company name"
+                    },
+                    {
+                        "name": "dato",
+                        "type": "text",
+                        "label": "Date (YYYY-MM-DD)"
+                    },
+                    {
+                        "name": "kunngjoring_type",
+                        "type": "text",
+                        "label": "Announcement type"
+                    },
+                    {
+                        "name": "category",
+                        "type": "text",
+                        "label": "Category"
+                    },
+                    {
+                        "name": "hendelse_type",
+                        "type": "text",
+                        "label": "Event type"
+                    }
                 ]
             }
         },
-        {"name": "next_cursor", "type": "text", "label": "Next cursor"}
-    ],
-    "samples": {
-        "items": [
-            {
-                "orgnr": "999999999",
-                "navn": "EKSEMPEL AS",
-                "dato": "2026-05-20",
-                "kunngjoring_type": "Fusjon",
-                "category": "kapital",
-                "hendelse_type": "fusjon"
-            }
-        ],
-        "next_cursor": null
-    }
+        {
+            "name": "next_cursor",
+            "type": "text",
+            "label": "Next cursor"
+        }
+    ]
 }

@@ -1,110 +1,313 @@
 {
     "name": "check_aml_pep",
-    "label": "Check AML/PEP",
-    "description": "Run full AML/PEP screening against sanctions lists for the company and its owners/role-holders. Logged for audit purposes — set the correct purpose.",
+    "label": "Check AML / PEP",
+    "description": "Screens a named person against up-to-date PEP and sanctions lists (EU, UN, OFAC, UK) and returns match scores with source details. Takes the person's name, optionally narrowed by birth year and category — not an organization number. Always check query_too_short and search_degraded before treating a zero hit count as a clean result, and results_truncated before treating the hit list as exhaustive. Requires a purpose parameter for the audit trail; note that audit persistence is best-effort — see the purpose field.",
     "connection": "apiKey",
     "type": "action",
+    "crud": "read",
     "parameters": [
         {
-            "name": "orgnr",
+            "help": "Full name to screen against sanctions and PEP lists (2–200 characters). Example: 'Vladimir Putin', 'Kim Jong-un'.",
+            "name": "name",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Person name",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
-                "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "max": 200,
+                "min": 2
             }
         },
         {
+            "help": "Optional. Used to reduce false-positive matches (1900–2100).",
+            "name": "birth_year",
+            "type": "uinteger",
+            "label": "Birth year",
+            "validate": {
+                "max": 2100,
+                "min": 1900
+            }
+        },
+        {
+            "help": "Which lists to check against.",
+            "name": "kategori",
+            "type": "select",
+            "label": "Category",
+            "default": "both",
+            "options": [
+                {
+                    "label": "Sanctions + PEP (both)",
+                    "value": "both"
+                },
+                {
+                    "label": "Sanctions lists only",
+                    "value": "sanksjon"
+                },
+                {
+                    "label": "PEP lists only",
+                    "value": "pep"
+                }
+            ],
+            "required": true
+        },
+        {
+            "help": "Fuzzy-match threshold (0.0–1.0). Default 0.85. Lower value = more matches but more noise.",
+            "name": "min_match_ratio",
+            "type": "number",
+            "label": "Minimum match score",
+            "default": 0.85,
+            "validate": {
+                "max": 1,
+                "min": 0
+            }
+        },
+        {
+            "help": "Purpose of the screening (kyc_onboarding / kyc_review / risk_monitoring / manual). Sent as X-FR-Purpose. 🪤 The route ATTEMPTS to write an audit row for every call, retained 60 months under the Norwegian Anti-Money Laundering Act § 30 — but the write is best-effort, not fail-closed: if the audit database is unavailable the route logs a warning and still returns the screening result. A successful response is therefore NOT proof that the call was recorded.",
             "name": "purpose",
             "type": "select",
-            "label": "Purpose of lookup",
-            "required": true,
+            "label": "Purpose of the AML check",
             "default": "kyc_onboarding",
-            "help": "Used for audit log and rate-limiting policy on the Firmaradar side.",
             "options": [
-                {"label": "KYC onboarding (new customer)", "value": "kyc_onboarding"},
-                {"label": "KYC review (existing customer)", "value": "kyc_review"},
-                {"label": "Risk monitoring", "value": "risk_monitoring"},
-                {"label": "Manual request", "value": "manual"}
-            ]
+                {
+                    "label": "KYC onboarding",
+                    "value": "kyc_onboarding"
+                },
+                {
+                    "label": "Periodic KYC review",
+                    "value": "kyc_review"
+                },
+                {
+                    "label": "Ongoing risk monitoring",
+                    "value": "risk_monitoring"
+                },
+                {
+                    "label": "Manual investigation",
+                    "value": "manual"
+                }
+            ],
+            "required": true
+        },
+        {
+            "name": "dpa_confirmed",
+            "type": "boolean",
+            "label": "I confirm DPA coverage",
+            "required": true,
+            "default": false,
+            "help": "Confirm that a signed data processing agreement (DPA) with Firmaradar covers this screening. Sent as X-FR-DPA-Confirmed on every call — this is a per-call assertion you are making, not a setting. The call is rejected without it."
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/aml/check",
+        "url": "/api/v1/aml/check",
         "method": "POST",
         "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+            "X-FR-Purpose": "{{parameters.purpose}}",
+            "X-FR-DPA-Confirmed": "{{parameters.dpa_confirmed}}"
         },
         "body": {
-            "orgnr": "{{parameters.orgnr}}",
-            "purpose": "{{parameters.purpose}}"
+            "name": "{{parameters.name}}",
+            "birth_year": "{{parameters.birth_year}}",
+            "kategori": "{{parameters.kategori}}",
+            "min_match_ratio": "{{parameters.min_match_ratio}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
-        }
+            "output": "{{body}}"
+        },
+        "//": "X-FR-DPA-Confirmed is mapped from the user's own checkbox, never hard-coded. The backend accepts the literal 'true' only, so an unchecked box renders 'false' and the call is rejected with the gate's own message. Hard-coding 'true' would make every execution assert, on the customer's behalf, that a signed DPA covers the screening — an assertion the customer had never made."
     },
     "interface": [
         {
-            "name": "orgnr",
+            "name": "query_name",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Checked name"
         },
         {
-            "name": "rapport_id",
-            "type": "text",
-            "label": "Rapport-ID"
+            "name": "query_birth_year",
+            "type": "number",
+            "label": "Checked birth year"
         },
         {
-            "name": "status",
-            "type": "text",
-            "label": "Status (clean/match/review)"
+            "name": "hit_count",
+            "type": "number",
+            "label": "Number of matches"
         },
         {
-            "name": "high_risk",
-            "type": "boolean",
-            "label": "Høy risiko"
-        },
-        {
-            "name": "treff",
-            "type": "array",
-            "label": "Treff (sanksjon/PEP)",
+            "name": "hits",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "navn", "type": "text", "label": "Navn"},
-                    {"name": "rolle", "type": "text", "label": "Rolle i selskapet"},
-                    {"name": "kilde", "type": "text", "label": "Kilde (PEP/sanksjon)"},
-                    {"name": "score", "type": "number", "label": "Match-score (0-100)"},
-                    {"name": "kommentar", "type": "text", "label": "Kommentar"}
+                    {
+                        "name": "primart_navn",
+                        "type": "text",
+                        "label": "Primary name"
+                    },
+                    {
+                        "name": "kategori",
+                        "type": "text",
+                        "label": "Category — 'pep' or 'sanksjon'. THIS is the discriminator; there is no boolean pep field."
+                    },
+                    {
+                        "name": "kategori_en",
+                        "type": "text",
+                        "label": "Category (English)"
+                    },
+                    {
+                        "name": "entitet_type",
+                        "type": "text",
+                        "label": "Entity type"
+                    },
+                    {
+                        "name": "entitet_type_en",
+                        "type": "text",
+                        "label": "Entity type (English)"
+                    },
+                    {
+                        "name": "match_ratio",
+                        "type": "number",
+                        "label": "Match score 0-1"
+                    },
+                    {
+                        "name": "match_type",
+                        "type": "text",
+                        "label": "Match type"
+                    },
+                    {
+                        "name": "match_type_en",
+                        "type": "text",
+                        "label": "Match type (English)"
+                    },
+                    {
+                        "name": "weak_match",
+                        "type": "boolean",
+                        "label": "WEAK match — substring/name-only; do not treat as confirmed"
+                    },
+                    {
+                        "name": "fodselsdato",
+                        "type": "text",
+                        "label": "Date of birth"
+                    },
+                    {
+                        "name": "fodselsdato_mangler",
+                        "type": "boolean",
+                        "label": "No date of birth available — identity is NOT confirmed"
+                    },
+                    {
+                        "name": "pep_status",
+                        "type": "text",
+                        "label": "PEP status — why this person is politically exposed"
+                    },
+                    {
+                        "name": "embete",
+                        "type": "text",
+                        "label": "Office held (embete) — the position that creates the exposure"
+                    },
+                    {
+                        "name": "verv_fra",
+                        "type": "text",
+                        "label": "Tenure start (ISO date) — when the office was assumed"
+                    },
+                    {
+                        "name": "verv_til",
+                        "type": "text",
+                        "label": "Tenure end (ISO date) — empty if still in office"
+                    },
+                    {
+                        "name": "verv_historikk",
+                        "type": "array",
+                        "label": "Full dated tenure timeline — every office with from/to",
+                        "spec": {
+                            "type": "collection",
+                            "spec": [
+                                {
+                                    "name": "embete",
+                                    "type": "text",
+                                    "label": "Office (embete)"
+                                },
+                                {
+                                    "name": "klasse",
+                                    "type": "text",
+                                    "label": "Office class"
+                                },
+                                {
+                                    "name": "tittel",
+                                    "type": "text",
+                                    "label": "Title"
+                                },
+                                {
+                                    "name": "pos_qid",
+                                    "type": "text",
+                                    "label": "Wikidata position id (P39)"
+                                },
+                                {
+                                    "name": "fra",
+                                    "type": "text",
+                                    "label": "From (P580)"
+                                },
+                                {
+                                    "name": "til",
+                                    "type": "text",
+                                    "label": "To (P582) — empty if still in office"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "pep_type",
+                        "type": "text",
+                        "label": "PEP type — officeholder, or related person (RCA)"
+                    },
+                    {
+                        "name": "relasjon",
+                        "type": "text",
+                        "label": "Relationship to the officeholder, when this is a related person"
+                    },
+                    {
+                        "name": "relasjon_kode",
+                        "type": "text",
+                        "label": "Relationship code (machine-readable)"
+                    },
+                    {
+                        "name": "relasjon_innenfor_direktivet",
+                        "type": "boolean",
+                        "label": "Within the AMLD family definition — TRI-STATE. 🚨 EMPTY has TWO causes: NOT APPLICABLE (the row is not a family RCA, so the directive question does not arise) or UNKNOWN (the relation code is missing OR not recognized; a family row predating migration v20, or a relation code not in the known-code sets). Neither means 'outside'. Never read an empty value as false."
+                    },
+                    {
+                        "name": "matchgrunnlag",
+                        "type": "text",
+                        "label": "Why this hit matched"
+                    },
+                    {
+                        "name": "kilder",
+                        "type": "array",
+                        "label": "Source lists"
+                    },
+                    {
+                        "name": "ekstern_id",
+                        "type": "text",
+                        "label": "External source ID"
+                    }
                 ]
-            }
+            },
+            "type": "array",
+            "label": "Matches"
         },
         {
-            "name": "audit_log_id",
+            "name": "query_too_short",
+            "type": "boolean",
+            "label": "Query was too short — zero hits does NOT mean the name is clean"
+        },
+        {
+            "name": "results_truncated",
+            "type": "boolean",
+            "label": "Hit cap was reached. More hits may exist — this is not proof any were discarded, since exactly the capped number can match. Narrow the search to be sure."
+        },
+        {
+            "name": "search_degraded",
+            "type": "boolean",
+            "label": "Candidate search degraded — true means trigram/alias search was unavailable; zero hits do NOT mean the name is clean"
+        },
+        {
+            "name": "note",
             "type": "text",
-            "label": "Audit-log-ID"
-        },
-        {
-            "name": "checked_at",
-            "type": "date",
-            "label": "Sjekket"
+            "label": "Completeness warning from the screening engine"
         }
-    ],
-    "samples": {
-        "orgnr": "999999999",
-        "rapport_id": "aml-2026-05-27-abcd1234",
-        "status": "clean",
-        "high_risk": false,
-        "treff": [],
-        "audit_log_id": "log-9876",
-        "checked_at": "2026-05-27T08:30:00Z"
-    }
+    ]
 }

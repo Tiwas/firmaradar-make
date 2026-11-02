@@ -1,118 +1,282 @@
 {
     "name": "get_ownership",
     "label": "Get ownership",
-    "description": "Get the group hierarchy up (owners) and/or down (subsidiaries) for a company. Returns the ownership tree with shares per level.",
+    "description": "Retrieves the ownership structure of a company. When individual owners are included the list can be bounded by a materiality threshold — always check owners_truncated before treating the owner list as complete.",
     "connection": "apiKey",
     "type": "action",
+    "crud": "read",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
+            "help": "Down = companies this company owns | Up = who owns this company (UBO) | Both = both.",
             "name": "direction",
             "type": "select",
             "label": "Direction",
-            "required": true,
-            "default": "both",
+            "default": "down",
             "options": [
-                {"label": "Both (up and down)", "value": "both"},
-                {"label": "Up (owners)", "value": "up"},
-                {"label": "Down (subsidiaries)", "value": "down"}
-            ]
+                {
+                    "label": "Companies it owns (down)",
+                    "value": "down"
+                },
+                {
+                    "label": "Owners of the company (up)",
+                    "value": "up"
+                },
+                {
+                    "label": "Both directions",
+                    "value": "both"
+                }
+            ],
+            "required": true
         },
         {
+            "help": "Accepted for backward compatibility and echoed back, but the response is identical for every value. Values are clamped to 1-10. Do not use this field to request indirect owners or holdings.",
             "name": "depth",
             "type": "uinteger",
-            "label": "Depth",
+            "label": "Depth (accepted but IGNORED)",
             "default": 5,
             "validate": {
-                "min": 1,
-                "max": 12
-            },
-            "help": "Number of levels to traverse up or down (1-12)."
+                "max": 10,
+                "min": 1
+            }
         },
         {
+            "help": "Include sensitive personal shareholders (UBO). This is a consent control, not a subscription tier. With a direct API key the KEY's own sensitive-ownership consent decides — not the account's; a consented key works even when the account flag is off, and the target orgnr must be within any allowlist on the API key. Without it the call is rejected with 403. Only applies when direction is up or both — direction=down returns holdings only and never contains persons.",
             "name": "include_persons",
             "type": "boolean",
-            "label": "Include person-level owners",
-            "default": false,
-            "help": "Include individual person owners. Requires full_ownership access on your subscription."
+            "label": "Include individual owners",
+            "default": false
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/ownership",
+        "url": "/api/v1/company/{{parameters.orgnr}}/ownership",
         "method": "GET",
         "qs": {
             "direction": "{{parameters.direction}}",
             "depth": "{{parameters.depth}}",
-            "include_persons": "{{if(parameters.include_persons, 1, 0)}}"
-        },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
+            "include_persons": "{{if(parameters.include_persons, '1', '')}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer (rot)"
-        },
-        {
-            "name": "navn",
-            "type": "text",
-            "label": "Selskapsnavn"
+            "label": "Organization number"
         },
         {
             "name": "direction",
             "type": "text",
-            "label": "Retning"
+            "label": "Direction used"
         },
         {
             "name": "depth",
-            "type": "uinteger",
-            "label": "Dybde brukt"
+            "type": "number",
+            "label": "Depth echoed back (does not affect the result)"
         },
         {
-            "name": "noder",
+            "name": "owners",
             "type": "array",
-            "label": "Noder i hierarkiet",
+            "label": "Owners — TWO shapes. Read owners_source first: empty = the derived annual-register shape, 'brreg_rrh_official' = the official RRH shape.",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Orgnr"},
-                    {"name": "navn", "type": "text", "label": "Navn"},
-                    {"name": "niva", "type": "integer", "label": "Nivå (negativt = opp)"},
-                    {"name": "andel", "type": "number", "label": "Andel (%)"},
-                    {"name": "type", "type": "text", "label": "Type (selskap/person)"}
+                    {
+                        "name": "owner_type",
+                        "type": "text",
+                        "label": "DERIVED: 'business' or 'person'"
+                    },
+                    {
+                        "name": "owner_name",
+                        "type": "text",
+                        "label": "DERIVED: owner name"
+                    },
+                    {
+                        "name": "ownership_pct",
+                        "type": "number",
+                        "label": "DERIVED: ownership percentage"
+                    },
+                    {
+                        "name": "share_count",
+                        "type": "uinteger",
+                        "label": "DERIVED: shares held"
+                    },
+                    {
+                        "name": "company_total_shares",
+                        "type": "uinteger",
+                        "label": "DERIVED: company total shares"
+                    },
+                    {
+                        "name": "owner_orgnr",
+                        "type": "text",
+                        "label": "DERIVED: organization number — business owners only"
+                    },
+                    {
+                        "name": "owner_person_key",
+                        "type": "text",
+                        "label": "DERIVED: stable person key — use with 'Get person shareholdings'"
+                    },
+                    {
+                        "name": "birth_year",
+                        "type": "text",
+                        "label": "DERIVED: birth year (masked) — person owners only"
+                    },
+                    {
+                        "name": "country_code",
+                        "type": "text",
+                        "label": "DERIVED: country code"
+                    },
+                    {
+                        "name": "poststed",
+                        "type": "text",
+                        "label": "DERIVED: postal town"
+                    },
+                    {
+                        "name": "navn",
+                        "type": "text",
+                        "label": "OFFICIAL RRH: name"
+                    },
+                    {
+                        "name": "foedselsaar",
+                        "type": "text",
+                        "label": "OFFICIAL RRH: birth year"
+                    },
+                    {
+                        "name": "statsborgerskap",
+                        "type": "any",
+                        "label": "OFFICIAL RRH: citizenship; text, or an array of codes when the person holds several"
+                    },
+                    {
+                        "name": "bostedsland",
+                        "type": "any",
+                        "label": "OFFICIAL RRH: country of residence; text, or an array when several values are registered"
+                    },
+                    {
+                        "name": "kontrollgrunnlag",
+                        "type": "any",
+                        "label": "OFFICIAL RRH: basis of control — why this person is a beneficial owner; an array of codes from posisjoner[], or a single text value from registrertGrunnlag"
+                    },
+                    {
+                        "name": "andel_prosent",
+                        "type": "number",
+                        "label": "OFFICIAL RRH: ownership share (%)"
+                    },
+                    {
+                        "name": "andel_intervall",
+                        "type": "array",
+                        "label": "OFFICIAL RRH: share interval, when only a band is reported; always an array when present"
+                    }
                 ]
             }
+        },
+        {
+            "name": "holdings",
+            "type": "collection",
+            "label": "Holdings — companies this company owns (down/both); null when none",
+            "spec": [
+                {
+                    "name": "owner_orgnr",
+                    "type": "text",
+                    "label": "Owner organization number"
+                },
+                {
+                    "name": "owner_name",
+                    "type": "text",
+                    "label": "Owner name"
+                },
+                {
+                    "name": "holdings",
+                    "type": "array",
+                    "label": "Holdings",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "child_orgnr",
+                                "type": "text",
+                                "label": "Company organization number"
+                            },
+                            {
+                                "name": "company_name",
+                                "type": "text",
+                                "label": "Company name"
+                            },
+                            {
+                                "name": "founded_year",
+                                "type": "uinteger",
+                                "label": "Founded year"
+                            },
+                            {
+                                "name": "ownership_pct",
+                                "type": "number",
+                                "label": "Ownership percentage"
+                            },
+                            {
+                                "name": "share_count",
+                                "type": "uinteger",
+                                "label": "Share count"
+                            },
+                            {
+                                "name": "company_total_shares",
+                                "type": "uinteger",
+                                "label": "Company total shares"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "owners_count",
+            "type": "uinteger",
+            "label": "Number of owners returned 🚨 Computed from the DERIVED annual-register list, BEFORE the official RRH list replaces owners. When owners_source is 'brreg_rrh_official' this value describes a list that was discarded — do NOT read it as a statement about the owners you received."
+        },
+        {
+            "name": "owners_truncated",
+            "type": "boolean",
+            "label": "Owner list is TRUNCATED — the UBO picture is incomplete 🚨 Computed from the DERIVED annual-register list, BEFORE the official RRH list replaces owners. When owners_source is 'brreg_rrh_official' this value describes a list that was discarded — do NOT read it as a statement about the owners you received."
+        },
+        {
+            "name": "owners_materiality_threshold_pct",
+            "type": "number",
+            "label": "Materiality threshold applied (%) — owners below it are omitted 🚨 Computed from the DERIVED annual-register list, BEFORE the official RRH list replaces owners. When owners_source is 'brreg_rrh_official' this value describes a list that was discarded — do NOT read it as a statement about the owners you received."
+        },
+        {
+            "name": "owners_note",
+            "type": "text",
+            "label": "Backend note about the owner list 🚨 Computed from the DERIVED annual-register list, BEFORE the official RRH list replaces owners. When owners_source is 'brreg_rrh_official' this value describes a list that was discarded — do NOT read it as a statement about the owners you received."
+        },
+        {
+            "name": "kilde",
+            "type": "text",
+            "label": "Provenance of the owner list — derived from the annual shareholder register, or official RRH when the premium track served it"
+        },
+        {
+            "name": "owners_source",
+            "type": "text",
+            "label": "The ONLY reliable provenance marker. 'brreg_rrh_official' = fresh official beneficial-owner lookup. Empty = either the derived annual list, or no owners branch ran at all (direction=down). 🚨 When set, IGNORE owners_count, owners_truncated, owners_materiality_threshold_pct and owners_note — they were computed from the discarded derived list."
+        },
+        {
+            "name": "kilde_tidspunkt",
+            "type": "text",
+            "label": "When the official RRH data was retrieved — official lookups only"
+        },
+        {
+            "name": "disclaimer",
+            "type": "text",
+            "label": "🚨 Freshness caveat on the DERIVED owner list. Present = the owners come from the annual shareholder register and may be stale. ABSENT proves nothing on its own — with direction=down the owners branch never runs, so neither this nor owners_source is set. Official RRH is indicated ONLY by owners_source == 'brreg_rrh_official'."
         }
-    ],
-    "samples": {
-        "orgnr": "999999999",
-        "navn": "Eksempel AS",
-        "direction": "both",
-        "depth": 5,
-        "noder": [
-            {"orgnr": "888888888", "navn": "Eier AS", "niva": -1, "andel": 75.0, "type": "selskap"},
-            {"orgnr": "777777777", "navn": "Konsernmor AS", "niva": -2, "andel": 100.0, "type": "selskap"},
-            {"orgnr": "666666666", "navn": "Datter AS", "niva": 1, "andel": 100.0, "type": "selskap"}
-        ]
-    }
+    ]
 }

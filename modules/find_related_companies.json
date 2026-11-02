@@ -1,19 +1,20 @@
 {
     "name": "find_related_companies",
     "label": "Find related companies",
-    "description": "Find companies related to a given company through shared people, shared address or shared owners. Useful for network/beneficial-ownership exploration and cluster detection.",
+    "description": "Finds companies related to a company through shared people, owners or address. Returns body.related[] as iterable bundles.",
     "connection": "apiKey",
     "type": "search",
+    "crud": "read",
+    "public": false,
     "parameters": [
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number to expand from.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
@@ -22,56 +23,117 @@
             "label": "Relation type",
             "default": "person",
             "options": [
-                {"label": "Shared people (roles)", "value": "person"},
-                {"label": "Shared owners", "value": "owner"},
-                {"label": "Shared address", "value": "address"}
-            ],
-            "help": "How companies are considered related."
+                {
+                    "label": "Shared people (roles)",
+                    "value": "person"
+                },
+                {
+                    "label": "Shared owners",
+                    "value": "owner"
+                },
+                {
+                    "label": "Shared address",
+                    "value": "address"
+                }
+            ]
         },
         {
             "name": "min_overlap",
             "type": "uinteger",
             "label": "Minimum shared entities",
-            "default": 1,
-            "help": "Minimum number of shared people/owners (for via person/owner)."
+            "default": 1
         },
         {
             "name": "limit",
             "type": "uinteger",
             "label": "Max results",
-            "default": 25,
-            "validate": {"min": 1, "max": 100},
-            "help": "Maximum number of related companies to return (1-100)."
+            "default": 10,
+            "validate": {
+                "min": 1,
+                "max": 100
+            }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/related",
+        "url": "/api/v1/company/{{parameters.orgnr}}/related",
         "method": "GET",
         "qs": {
             "via": "{{parameters.via}}",
             "min_overlap": "{{parameters.min_overlap}}",
             "limit": "{{parameters.limit}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body.related}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "iterate": "{{body.related}}",
+            "output": {
+                "orgnr": "{{item.orgnr}}",
+                "navn": "{{item.navn}}",
+                "relation_strength": "{{item.relation_strength}}",
+                "shared_entities": "{{item.shared_entities}}"
+            },
+            "limit": "{{parameters.limit}}"
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisation number"},
-        {"name": "navn", "type": "text", "label": "Company name"},
-        {"name": "overlap", "type": "uinteger", "label": "Shared entities"}
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "navn",
+            "type": "text",
+            "label": "Company name"
+        },
+        {
+            "name": "relation_strength",
+            "type": "uinteger",
+            "label": "Number of shared entities"
+        },
+        {
+            "name": "shared_entities",
+            "type": "array",
+            "label": "The shared people, addresses or owners — objects, not strings",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {
+                        "name": "type",
+                        "type": "text",
+                        "label": "Variant: 'role', 'address' or 'owner'"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "label": "Person or owner name — role and owner variants"
+                    },
+                    {
+                        "name": "value",
+                        "type": "text",
+                        "label": "The shared address — address variant"
+                    },
+                    {
+                        "name": "owner_type",
+                        "type": "text",
+                        "label": "'business' or 'person' — owner variant"
+                    },
+                    {
+                        "name": "ownership_pct",
+                        "type": "number",
+                        "label": "Stake in the related company (%) — owner variant"
+                    }
+                ]
+            }
+        }
     ],
     "samples": {
-        "orgnr": "999999998",
-        "navn": "RELATERT AS",
-        "overlap": 2
+        "orgnr": "999999999",
+        "navn": "Eksempelrelatert AS",
+        "relation_strength": 1,
+        "shared_entities": [
+            {
+                "type": "role",
+                "name": "Ola Nordmann"
+            }
+        ]
     }
 }

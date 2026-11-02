@@ -4,7 +4,7 @@
 
 # firmaradar-make
 
-**Bygg Make.com-scenarier mot norske selskapsdata — eierregister, konsern, regnskap, KYC og AML — uten å skrive en eneste linje kode.**
+**Bygg Make.com-scenarier mot norsk selskaps-intelligens — eierskap, konsern, regnskap, KYC, AML og risiko — uten å skrive en eneste linje kode.**
 
 [![Lisens: Apache 2.0](https://img.shields.io/badge/Lisens-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Make.com Custom App](https://img.shields.io/badge/Make.com-custom_app-6d00cc.svg)](https://www.make.com/)
@@ -12,8 +12,7 @@
 [![Norsk data](https://img.shields.io/badge/data-norske%20selskaper-9333ea.svg)](https://firmaradar.no)
 
 [**Installer i Make →**](#installasjon) &nbsp;·&nbsp;
-[Moduler](#moduler) &nbsp;·&nbsp;
-[Mal-scenarier](#malscenarier) &nbsp;·&nbsp;
+[Modulreferanse](readme_sdk.md) &nbsp;·&nbsp;
 [Prising](https://firmaradar.no/prising) &nbsp;·&nbsp;
 [Dokumentasjon](https://firmaradar.no/dokumentasjon)
 
@@ -21,9 +20,39 @@
 
 ---
 
+> **Dette er pilot-guiden, på norsk.** Den dekker installasjon, tilkobling og
+> daglig bruk.
+>
+> Den fullstendige **connector-referansen** — hver modul med endepunkt og
+> kontrakt, konvensjoner for paginering og datoer, kvotevekter og tilgangsgater
+> — ligger i
+> [`readme_sdk.md`](readme_sdk.md), på engelsk. Det er samme fil som er publisert
+> som appens egen readme inne i Make, så den er skrevet for det publikummet:
+> Make-reviewere og eksterne som importerer dette repoet.
+>
+> Fila du leser nå gjentar ikke den referansen. Når du trenger å vite hva en
+> modul faktisk kaller, eller hva et kall koster — gå dit. De enkelte
+> inn- og utdatafeltene ser du i modulen selv i Make; referansen beskriver
+> kontrakten, ikke hvert felt.
+
+---
+
 ## Hva er dette?
 
-`firmaradar-make` er en custom-app for Make.com som lar deg slå opp norske selskaper, eierstrukturer, konsernhierarkier, roller, regnskap og AML/PEP-screening direkte i scenariene dine. Samme datakilde og samme operasjoner som [MCP-serveren](https://github.com/Tiwas/firmaradar-mcp) og [n8n-pakken](https://github.com/Tiwas/firmaradar-n8n), men i Make.com-konteksten med visuelle scenarie-bygger.
+`firmaradar-make` er en custom-app for Make.com som gir scenariene dine
+beslutningsklar norsk selskaps-intelligens: eierstrukturer, konsernhierarkier,
+roller, regnskap, risikoscore og AML/PEP-screening.
+
+Firmaradar er en berikelsesplattform. Modulene svarer med den sammenstilte
+vurderingen — ikke med et rått registeruttrekk — fordi plattformen fletter flere
+kilder (Brønnøysundregistrene, Skatteetaten, Patentstyret, NAV, Innovasjon
+Norge, SkatteFUNN og internasjonale PEP- og sanksjonslister) og legger egne
+berikelseslag oppå. Et scenario kan derfor handle på et risikonivå eller en
+FIV-klassifisering uten å modellere norsk selskapsrett selv.
+
+Appen er Make-flaten av den samme kontrakten som tilbys over MCP, n8n og Power
+Automate. Feltnavn og semantikk er stabile på tvers av flatene, så du kan flytte
+en arbeidsflyt mellom dem uten datatap.
 
 Egnet for:
 
@@ -39,7 +68,9 @@ Egnet for:
 
 ### Pilot (anbefalt — fungerer nå)
 
-Appen er i **pilot-fase** og distribueres via Install URL inntil Make.com sertifisering (4-6 uker køtid). Klikk lenken under for å legge appen til din Make.com-konto:
+Appen er i **pilot-fase** og distribueres via Install URL mens Make vurderer
+innsendingen til app-katalogen. Klikk lenken under for å legge appen til din
+Make.com-konto:
 
 **🚀 [Installer Firmaradar Custom App](https://www.make.com/en/hq/app-invitation/f2d3ea79f03dee549219e984b33a9308)**
 
@@ -47,27 +78,30 @@ Etter installasjon:
 
 1. **Gå til Scenarios** → opprett nytt scenario
 2. **Søk etter "Firmaradar"** i moduler-panelet
-3. **Velg en modul** (Get Company, Search Companies, Check AML / PEP, osv.)
-4. **Opprett tilkobling** med din Firmaradar API-key fra [firmaradar.no/min-side/api-keys](https://firmaradar.no/min-side/api-keys)
+3. **Velg en modul** (Get company, Search companies, Check AML / PEP, osv.)
+4. **Opprett tilkobling** med din Firmaradar API-nøkkel fra [firmaradar.no/min-side/api-keys](https://firmaradar.no/min-side/api-keys)
 
 ### Fra Make.com-katalogen (etter sertifisering)
 
-Når appen er godkjent og publisert i Make-direktoratet (Q3 2026 estimert):
+Hvis Make godkjenner og publiserer appen i katalogen:
 
 1. Logg inn på [Make.com](https://www.make.com/)
 2. Gå til **My Apps → Add app** og søk etter **Firmaradar**
 3. Klikk **Install**
 
-### Eksperimentell: privat-app-utvikling
+### Bygge din egen private app fra dette repoet
 
-Hvis du vil eksperimentere med å bygge din egen versjon av appen mot egen developer-konto:
+Vil du importere definisjonene i dette repoet til din egen developer-konto i
+stedet, står den framgangsmåten i
+[`IMPORTING.md`](IMPORTING.md) — seksjonen ble flyttet dit da `readme_sdk.md` ble gjort publiserbar.
 
-1. Opprett developer-konto på [developers.make.com](https://developers.make.com/)
-2. Opprett ny Custom App via **Make → More → Custom Apps → Create a new app**
-3. Lim inn innholdet fra `app.json`, `connections/`, `modules/` og `functions/` via Web Code Editor (jsonc-blokker)
-4. Test scenariene mot din egen Make.com-instans
+Den delen er engelsk med vilje: den er ikke pilotbruk, men skrevet for den som
+importerer repoet. Den bærer også fellene i importen — les den før du limer inn
+noe, for gruppene binder ikke uten videre til de importerte modulene.
 
-> ⚠️ Filene i dette repoet er **referanse-dokumentasjon** av live-appen. De er ikke nødvendigvis 100 % synkronisert med Make sin database i sanntid (Make CLI for source-sync kommer i v0.2).
+> ⚠️ Filene i dette repoet er **referanse-dokumentasjon** av live-appen. De er
+> ikke nødvendigvis 100 % synkronisert med Make sin database i sanntid (Make CLI
+> for source-sync kommer i v0.2).
 
 ---
 
@@ -77,92 +111,92 @@ Når du legger til en Firmaradar-modul, må du opprette en **Firmaradar API**-ti
 
 1. Klikk **Add → Firmaradar → API Key**
 2. Lim inn API-nøkkelen din fra [firmaradar.no/min-side/api-keys](https://firmaradar.no/min-side/api-keys)
-3. (Valgfritt) Endre base-URL hvis du kjører selvhostet Firmaradar (default: `https://firmaradar.no`)
-4. Make tester tilkoblingen mot `/api/v1/health/ping` automatisk
-5. Lagre
+3. Lagre
 
-Samme tilkobling gjenbrukes på tvers av alle Firmaradar-moduler i alle scenarier.
+Det er hele skjemaet. Samme tilkobling gjenbrukes på tvers av alle
+Firmaradar-moduler i alle scenarier.
 
----
+To ting er verdt å vite før du tester:
 
-## Moduler
+> 🪤 **Det finnes ingen base-URL-kontroll.** Tilkoblingen har kun feltet
+> `apiKey`; URL-en er hardkodet til `https://firmaradar.no` nettopp for at
+> `Authorization`-headeren ikke skal kunne omdirigeres til en server du selv
+> velger. Selvhosting støttes derfor ikke gjennom denne connectoren.
 
-20 action/search-moduler + 2 instant-triggere, samlet under én Firmaradar-app:
+> 🪤 **Tilkoblingstesten koster én kvoteenhet.** Make validerer nøkkelen med et
+> ekte autentisert oppslag (`GET /api/v1/company/923609016`), ikke med et gratis
+> helsesjekk-kall. `/api/v1/health/ping` ble vurdert og forkastet: den svarer
+> `404`, så en test mot den ville godtatt hvilken som helst nøkkel — også en
+> ugyldig.
 
-### Søk (search-moduler)
-- **Search companies** — søk på navn eller orgnr, returnerer opptil 100 rader
-- **Search persons** — fuzzy navne-søk mot aksjonærer og rolleholdere, returnerer stabile person-nøkler
+Tilkoblingen lagres ved `200`, `402`, `403` og `429` — de tre siste betyr at
+nøkkelen **autentiserte**, selv om noe annet stoppet kallet. Det er bevisst: en
+nøkkel med aktiv AML- eller utvidelsespakke, men uten selskaps-oppslag, får
+`403` på testkallet selv om dens egne moduler virker helt fint.
 
-### Selskaps-handlinger (action-moduler)
-- **Get company** — full profil (organisasjonsform, NACE, ansatte, adresse, regnskap, eiere, roller)
-- **Get IP portfolio** — patenter, varemerker og design fra Patentstyret (dedikert IP-action)
-- **Get ownership** — konsernhierarki opp og ned, dybde 1–12, valgfri person-inkludering
-- **Get roles** — styre, daglig leder, prokura (med valgfri fratrådt-historikk)
-- **Get financials** — årsregnskap og nøkkeltall opptil 10 år tilbake (rå tall for egen beregning)
-- **Get financial report (Excel/PDF)** — ferdig formatert regnskapsrapport som nedlastbar fil (til forskjell fra «Get financials», som gir rå tall): metadata + kortlevd (15 min) signert nedlastings-URL, opptil 5 regnskapsår, selskap eller konsern *(krever `excel_feed`- eller `print_til_pdf`-tilgang — se merknad)*
-- **Get recent changes** — endringer siste N dager (rolle, adresse, signal, kunngjøring)
-
-### Risiko og KYC
-- **Get risk signals** — aggregerte risiko-signaler (KYC-kunngjøringer + distress/FIV + mellombalanse) i ett kall
-- **Get risk score** — transparent 0-100-score med nivå og komponent-breakdown *(markedsplass-gated — se merknad)*
-- **Check company in difficulty (FIV)** — foretak-i-vanskeligheter-status etter GBER art. 2(18) (EU-forordning 651/2014), kriteriene a-e, vurdert på to nivåer (selskap og konsern)
-- **Check AML/PEP** — full AML/PEP-screening med sanksjonslister, audit-log og formåls-tagging (kyc_onboarding / kyc_review / risk_monitoring / manual)
-- **Get AML score** *(deprecert 07-07 — se merknad)* — svarer nå kun 202 + `rapport_id`/`poll_url` (samme form som «Start AML report»); bruk «Start AML report» + «Get AML report» for nye scenarier
-
-### Person
-- **Get person roles** — full rolle-historikk (aktiv + historisk) på tvers av selskap
-- **Get person shareholdings** — aksjebeholdninger, eierandeler og total eierverdi
-
-### Offentlig støtte
-- **Get group public support** — direkte + konsern-aggregert offentlig støtte (NAV, Innovasjon Norge, SkatteFUNN, støtteregisteret)
-
-### Batch og async (portefølje-screening)
-- **Bulk: distress check (FIV)** — foretak-i-vanskeligheter for opptil 50 orgnr i ett kall; per-orgnr compliance-gate, 1 enhet/orgnr
-- **Bulk: risk score** — risikoscore (0-100 + nivå + komponenter) for opptil 50 orgnr i ett kall
-- **Start AML report (async)** — starter AML-rapport i bakgrunnen (submit → `rapport_id` + status «pending»); krever DPA-headers, lagres i 60 mnd
-- **Get AML report (poll)** — poller status/resultat for en async AML-rapport til `done`/`failed`
-
-### Instant triggers (webhook-baserte)
-Starter et scenario **når noe skjer** i stedet for å polle. Modulen `attach`-er
-scenariets Make-webhook-URL som callback hos Firmaradar ved oppretting og
-`detach`-er (DELETE) ved fjerning.
-- **Watch a company** — varsel ved kunngjøring, status-, eier- eller
-  tilskuddsendring for ett orgnr.
-- **Watch an industry (NACE)** — varsel når et selskap i en NACE-kode endrer seg,
-  med hendelsestype-, geo- (fylke/kommune) og størrelses-filtre.
-
-Valgfri leverings-hemmelighet sendes som `Authorization: Bearer`; NACE-leveranser
-signeres i tillegg med `X-Firmaradar-Signature`. Krever `firmaovervåkning` på kontoen.
-
-> **Merknad om «Get risk score» / «Bulk: risk score»:** risikoscoring er en markedsplass-gated funksjon.
-> Kontoen din må ha risikoscoring aktivert, og pre-screening-disclaimeren må være
-> bekreftet, ellers svarer handlingen `403`. Person-modulene krever full-søk-tilgang;
-> fødselsår maskeres til 4-sifret år.
-
-> **Merknad om «Get financial report (Excel/PDF)»:** krever `excel_feed`-tilgang
-> (xlsx) eller `print_til_pdf`-tilgang (pdf) aktivert på kontoen, ellers svarer
-> handlingen `403`. Leverer aldri filen inline — svaret er metadata + en
-> kortlevd (~15 min), signert nedlastings-URL. Maks 5 regnskapsår; 1 kreditt
-> per levert regnskapsår.
-
-> **Merknad om «Get AML score»:** `POST /api/v1/aml/score` er deprecert (Lars-vedtak
-> 2026-07-07, kostnadsmatrise §4.6 + pen-test B1). Kallet svarer nå `202` og starter
-> en asynkron AML-rapport i stedet for å returnere score/level synkront — samme
-> payload-form som «Start AML report», pluss `deprecated: true` + migreringsmelding.
-> Modulen er kun beholdt for bakoverkompatibilitet med eksisterende scenarier; bygg
-> nye scenarier mot «Start AML report (async)» + «Get AML report (poll)».
-
-v0.2-modulene `get_announcements`, `search_announcements`, `compare_companies`, `list_companies_in_nace`, `find_related_companies` og `find_shared_connections` ligger i `modules/` (kilde) og er **pushet live** til Custom App `firmaradar-p9vj9v` (07-09) via `scripts/make_sdk_push.py` (Make Apps SDK-API — camelCase modulnavn `getAnnouncements` osv. i live-appen). Appen har 25 moduler. Token: `secrets/make.env` (scopes `sdk-apps:read/write`, gitignorert). `get_aml_score` er nå også lagt til i kilden (mirrorer live-modulen `getAmlScore`, deprecert-kontrakt) — **ingen ny push** før markedsplass-review er ferdig.
+🪤 Alt annet enn disse fire avvises som ugyldig nøkkel. `401` er det tilsiktede
+tilfellet, men en forbigående `500` eller en uventet `404` gir samme
+`InvalidAccessTokenError`. Får du den under et backend-avbrudd, er det ikke
+nødvendigvis nøkkelen din — prøv igjen senere før du genererer en ny. Prisen er at en sperret eller utløpt
+konto ser en frisk tilkobling og får sin spesifikke feil først når en modul
+kjører — den billigste av de to feilene.
 
 ---
 
-## Mal-scenarier
+## Hva du finner i modulvelgeren
 
-Repoet inneholder en ferdig scenario-mal du kan importere direkte i Make via **Scenarios → Create → Import blueprint**:
+Modulene er gruppert som `Companies`, `People`, `Risk and signals`, `AML`,
+`Search` og `Other`. Hver enkelt modul, med endepunktet den kaller og hva den
+returnerer, er dokumentert i
+[`readme_sdk.md` § *Module reference*](readme_sdk.md#module-reference).
 
-| Mal | Bruksområde |
-|---|---|
-| [`templates/kyc-screening.json`](templates/kyc-screening.json) | Webhook-trigger (orgnr) → AML/PEP-sjekk + eierskap → router som varsler Slack ved høy risiko og logger til Google Sheets ellers |
+🪤 **Ikke alle moduldefinisjoner i `modules/` er moduler du kan velge.** Noen er
+med vilje ikke pushet til live-appen, og noen av de pushede er skjult i
+modulvelgeren for å holde reviewflaten smal. De skjulte står i
+[`readme_sdk.md` § *Module reference*](readme_sdk.md#module-reference), som er
+stedet statusen vedlikeholdes. De fire som aldri ble pushet er ikke der — de
+står i en repo-intern oversikt som ikke følger med det offentlige speilet.
+Antallet er med vilje ikke gjentatt her: en modul som gjøres synlig eller pushes
+ville ellers gjort denne fila usann uten at noen så det.
+
+Finner du ikke en modul du forventet, er det nesten alltid dette som er
+forklaringen — ikke en feil i installasjonen.
+
+---
+
+## Når du får 403 (eller 422)
+
+Noen funksjoner er gated per konto. En `403` — eller en `422` fra
+organisasjonsform-gaten — betyr at gaten er lukket, ikke at forespørselen var
+feil.
+
+🪤 En `400` er ikke en gate. **Enkeltoppslags-modulene** validerer orgnummeret
+før det gatede kallet og svarer `400 invalid_orgnr` på alt som ikke er ni
+siffer, så en ugyldig verdi skal ikke feilsøkes som et tilgangsproblem.
+
+🪤 **Bulk-modulene viser ingen av delene som HTTP-status.** De svarer `200` selv
+når rader feiler: både et ugyldig nummer (`invalid_orgnr`) og en lukket gate
+ligger per orgnr i `results[]`. Per-rad-statusen går til audit-loggen og
+`_meta.failed`, ikke til svarkoden. Et scenario som forgrener seg på
+HTTP-statusen alene, vil lese en batch med feilede rader som helt vellykket —
+sjekk `results[].error`.
+
+- **Risikoscoring** krever at funksjonen er aktivert på kontoen, og at
+  pre-screening-disclaimeren er bekreftet
+- **Person-modulene og person-søket** krever full-søk-tilgang. Mindreårige
+  filtreres bort, og fødselsår maskeres alltid til firesifret år
+- **AML-modulene** krever signert databehandleravtale
+- **Organisasjonsform** — både `ENK` (enkeltpersonforetak) og `NUF`
+  (norskregistrert utenlandsk foretak) er blokkert fra risikoscore-modulene by
+  design, gjennom én og samme sperre (`enk_not_supported`, HTTP 422). Tross
+  navnet på feilkoden er dette en organisasjonsform-gate, ikke en ENK-gate — et
+  NUF er ikke et enkeltpersonforetak. 🪤 FIV-modulene har ikke den sperren: et
+  ENK blir vurdert, men holdes utenfor kriterium (b), som måler tap av
+  selskapskapital et enkeltpersonforetak ikke har
+
+I bulk-modulene kommer et lukket gate-svar som en feil per orgnr, ikke som en
+feil på hele kallet. Den fullstendige oversikten står i
+[`readme_sdk.md` § *Compliance notes*](readme_sdk.md#compliance-notes).
 
 ---
 
@@ -174,22 +208,29 @@ Make-appen er gratis. Du betaler kun for Firmaradar-abonnementet ditt etter forb
 - Per-kall-pris avhengig av pakke (se [firmaradar.no/prising](https://firmaradar.no/prising))
 - Egen rabattert MCP/agent-pakke for høy-volum-arbeidsflyter
 
-Make-kall belastes som vanlige API-kall siden de skjer fra Make sin infrastruktur, ikke fra en AI-agent.
+Make-kall belastes som vanlige API-kall siden de skjer fra Make sin
+infrastruktur, ikke fra en AI-agent. Hva det enkelte kallet veier — og hvorfor
+et orgnr i en bulk-modul teller som én kvoteenhet, men koster ulikt antall
+kreditter fra modul til modul — står under
+[`readme_sdk.md` § *Quotas and rate limits*](readme_sdk.md#quotas-and-rate-limits).
 
 ---
 
 ## Forholdet til MCP-serveren og n8n-pakken
 
-Denne pakken, [Firmaradar MCP-serveren](https://github.com/Tiwas/firmaradar-mcp) og [n8n-pakken](https://github.com/Tiwas/firmaradar-n8n) er tre grensesnitt til samme datakilde:
+Denne pakken, [Firmaradar MCP-serveren](https://github.com/Tiwas/firmaradar-mcp)
+og [n8n-pakken](https://github.com/Tiwas/firmaradar-n8n) er tre grensesnitt til
+samme plattform:
 
 | | Make.com custom app | n8n community node | MCP-server |
 |---|---|---|---|
 | **Bruksområde** | Visuelle scenarier, branching, SaaS-integrasjoner | Selvhostede arbeidsflyter, avansert scripting | AI-agenter (Claude, ChatGPT, Cursor) |
 | **Installasjon** | Make.com app-katalog | n8n GUI eller `npm install` | OAuth-tilkobling eller `pip install` |
 | **Auth** | API-nøkkel (kryptert i Make) | API-nøkkel via n8n-legitimasjon | OAuth 2.0 eller API-nøkkel |
-| **Datakilde** | Samme Firmaradar API | Samme Firmaradar API | Samme Firmaradar API |
+| **Kontrakt** | Samme Firmaradar-kontrakt | Samme Firmaradar-kontrakt | Samme Firmaradar-kontrakt |
 
-Alle tre bruker samme operasjons-skjema i bunn, så du kan migrere arbeidsflyter mellom dem uten datatap.
+Alle tre bruker samme operasjons-skjema i bunn, så du kan migrere arbeidsflyter
+mellom dem uten datatap.
 
 ---
 
@@ -199,17 +240,28 @@ Alle tre bruker samme operasjons-skjema i bunn, så du kan migrere arbeidsflyter
 - **Tillit gjennom gjennomgang** — Apache 2.0. Lås til en spesifikk versjon, kjør din egen SBOM-skanning, eller fork-en og kjør som privat-app på din egen Make-konto
 - **Bidrag velkommen** — vi tar imot pull requests som forbedrer skjemaer eller legger til kompatibilitets-lag for nye Make.com-versjoner
 
-Backend (firmaradar.no) er proprietær fordi den eier dataflyten og lisensieringen mot Skatteetaten og Brønnøysund.
+Backend (firmaradar.no) er proprietær fordi den eier dataflyten og
+lisensieringen mot Skatteetaten og Brønnøysund.
 
 ---
 
 ## Sikkerhet og GDPR
 
-- API-nøkkel lagres i Make sin krypterte legitimasjon-store, aldri i klartekst i scenario-JSON
+- API-nøkkelen lagres i Make sin krypterte legitimasjon-store, aldri i klartekst i scenario-JSON. Appen deklarerer i tillegg `log.sanitize` på `Authorization`-headeren — mekanismen Make bruker for å holde den utenfor eksekveringsloggene
 - Loggføring per kall på Firmaradar-siden (kunde-id, nøkkel-id, endepunkt og status) — eksporteres via DSAR-rapport
-- Person-data pseudonymiseres på serversiden; sikkerhetskopier kryptert og lagret eksternt
+- Person-data pseudonymiseres på serversiden; sikkerhetskopier krypteres og lagres eksternt
 - Make-tilkoblingen sender `X-FR-Client: make-firmaradar/0.1` slik at Firmaradar kan skille Make-trafikk fra n8n/MCP/direkte API-bruk i audit-loggen
 - Norsk lov og GDPR-tilpasset: behandlingsgrunnlag, samtykke, oppbevaringstid
+
+> 🚨 **`untrusted_content`-markøren er smal, og fraværet av den beviser
+> ingenting.** Bare to endepunkter merker svaret sitt. Ingen andre setter
+> markøren — heller ikke de mange som returnerer fritekst fra registeret. Bygger
+> du et scenario som leser markøren for å avgjøre hva som er trygt å sende videre
+> til en AI-modul, vil det behandle de fleste selskapsnavn som betrodde. Behandle
+> all register-fritekst som data, aldri som instruksjoner — uavhengig av
+> markøren.
+> Hvilke to endepunktene er, står i
+> [`readme_sdk.md` § *Conventions*](readme_sdk.md#conventions).
 
 Hele sikkerhets-policyen: [firmaradar.no/personvern](https://firmaradar.no/personvern)
 
@@ -218,40 +270,23 @@ Hele sikkerhets-policyen: [firmaradar.no/personvern](https://firmaradar.no/perso
 ## Repo-struktur
 
 ```
-tools/make_app/
-├── app.json                          # Top-level metadata (navn, base-URL, headers)
+.
+├── app.json              # App-metadata: navn, fast base-URL, felles headere
+├── groups.json           # Modulgruppene i velgeren — fasit for hvilke som er live
 ├── connections/
-│   └── apiKey.json                   # API-key-tilkobling med test mot /health/ping
-├── modules/
-│   ├── search_companies.json         # Search-type modul
-│   ├── search_persons.json           # Search: person-søk (fuzzy)
-│   ├── get_company.json              # Action: full profil
-│   ├── get_company_ip.json           # Action: IP-portefølje (Patentstyret)
-│   ├── get_ownership.json            # Action: eierskap m/direction + depth
-│   ├── get_roles.json                # Action: roller m/role_type + include_retired
-│   ├── get_financials.json           # Action: regnskap m/years (rå tall)
-│   ├── get_regnskapsrapport.json     # Action: ferdig regnskapsrapport (xlsx/pdf) — gated
-│   ├── get_recent_changes.json       # Action: endringer siste N dager
-│   ├── get_signals.json              # Action: aggregerte risiko-signaler
-│   ├── get_risk_score.json           # Action: risikoscore 0-100 (markedsplass-gated)
-│   ├── check_fiv.json                # Action: foretak-i-vanskeligheter (GBER art. 2(18) a-e, selskap+konsern)
-│   ├── check_aml_pep.json            # POST: AML/PEP-screening m/purpose
-│   ├── get_person_roles.json         # Action: persons rolle-historikk
-│   ├── get_person_companies.json     # Action: persons aksjebeholdninger
-│   ├── get_konsernstotte.json        # Action: offentlig støtte gjennom konsernet
-│   ├── check_fiv_bulk.json           # POST: bulk FIV (opptil 50 orgnr)
-│   ├── get_risk_score_bulk.json      # POST: bulk risikoscore (opptil 50 orgnr)
-│   ├── start_aml_report.json         # POST: async AML-rapport (DPA-headers) → 202
-│   └── get_aml_report.json           # GET: poll async AML-rapport-status
+│   └── apiKey.json       # API-nøkkel-tilkoblingen (ett felt) + tilkoblingstesten
+├── modules/              # Moduldefinisjoner (ikke alle er live — se avsnittet over)
+├── webhooks/             # 2 webhook-definisjoner for instant-triggerne
 ├── functions/
-│   └── helpers.iml.js                # IML-helpers (orgnr-validering, error-extract)
-├── templates/
-│   └── kyc-screening.json            # Eksempel-scenario (KYC-screening)
+│   └── helpers.iml.js    # IML-helpers (orgnr-validering, feil-uttrekk)
 ├── docs/
-│   └── index.html                    # GitHub Pages landing-side (engelsk)
-├── README.md                         # Denne filen
-├── CHANGELOG.md                      # Versjons-historikk
-└── LICENSE                           # Apache 2.0
+│   └── index.html        # GitHub Pages landingsside (engelsk)
+├── icon.png              # App-ikonet
+├── README.md             # Denne fila — pilot-guide (norsk)
+├── readme_sdk.md         # Connector-referanse (engelsk), publisert som appens readme
+├── IMPORTING.md           # Importere repoet som privat Make-app (engelsk)
+├── CHANGELOG.md          # Versjons-historikk
+└── LICENSE               # Apache 2.0
 ```
 
 ---
@@ -268,13 +303,13 @@ tools/make_app/
 
 Se [CHANGELOG.md](CHANGELOG.md) for full historikk.
 
-- **0.1.0** — Initial release. 7 moduler (search_companies, get_company, get_ownership, get_roles, get_financials, check_aml_pep, get_recent_changes) + KYC-screening-mal.
+- **0.1.0** — Første moduldefinisjoner; se [endringsloggen](CHANGELOG.md) for historiske detaljer og senere rettinger.
 
 ---
 
 <div align="center">
 
-**Bygget av [Firmaradar AS](https://firmaradar.no)** — agentisk infrastruktur for norske selskapsdata.
+**Bygget av [Firmaradar AS](https://firmaradar.no)** — agentisk infrastruktur for norsk selskaps-intelligens.
 
 [firmaradar.no](https://firmaradar.no) &nbsp;·&nbsp; [Prising](https://firmaradar.no/prising) &nbsp;·&nbsp; [Dokumentasjon](https://firmaradar.no/dokumentasjon) &nbsp;·&nbsp; [Personvern](https://firmaradar.no/personvern) &nbsp;·&nbsp; [MCP-server](https://github.com/Tiwas/firmaradar-mcp) &nbsp;·&nbsp; [n8n-noder](https://github.com/Tiwas/firmaradar-n8n)
 

@@ -1,62 +1,172 @@
 {
     "name": "get_person_roles",
     "label": "Get person roles",
-    "description": "Get the complete role history (active and historic) that a person has held across companies — board, CEO, signatory, proxy, auditor. Uses the stable role-person ID from 'Search persons'. Requires full-search access. Birth year is masked to a 4-digit year.",
+    "description": "Retrieves the complete role history (active + historical) a person has held across companies — board, CEO, signature, power of procuration, auditor. Uses the stable role-person ID from ‘Search persons’. Requires full-search access. Birth year is masked to a 4-digit year.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "Stable role-person key returned by ‘Search persons’.",
             "name": "role_person_id",
             "type": "text",
             "label": "Role-person ID",
-            "required": true,
-            "help": "Stable role-person key returned by 'Search persons'."
+            "required": true
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/person/roles/{{parameters.role_person_id}}",
+        "url": "/api/v1/person/roles/{{parameters.role_person_id}}",
         "method": "GET",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
-        {"name": "role_person_id", "type": "text", "label": "Rolle-person-ID"},
-        {"name": "name", "type": "text", "label": "Navn"},
-        {"name": "birth_year", "type": "text", "label": "Fødselsår (maskert)"},
         {
-            "name": "roles",
+            "name": "role_person_id",
+            "type": "text",
+            "label": "Role-person ID"
+        },
+        {
+            "name": "name",
+            "type": "text",
+            "label": "Name"
+        },
+        {
+            "name": "birth_year",
+            "type": "text",
+            "label": "Birth year (masked)"
+        },
+        {
+            "name": "companies",
             "type": "array",
-            "label": "Roller",
+            "label": "Role history per company",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "rolle_type", "type": "text", "label": "Rolletype"},
-                    {"name": "orgnr", "type": "text", "label": "Selskap (orgnr)"},
-                    {"name": "navn", "type": "text", "label": "Selskapsnavn"},
-                    {"name": "fra_dato", "type": "date", "label": "Fra dato"},
-                    {"name": "til_dato", "type": "date", "label": "Til dato"},
-                    {"name": "signatur_alene", "type": "boolean", "label": "Signatur alene"},
-                    {"name": "is_active", "type": "boolean", "label": "Aktiv"}
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "company_name",
+                        "type": "text",
+                        "label": "Company name"
+                    },
+                    {
+                        "name": "role_types",
+                        "type": "array",
+                        "label": "Roles held"
+                    },
+                    {
+                        "name": "active",
+                        "type": "boolean",
+                        "label": "Currently active"
+                    },
+                    {
+                        "name": "founded_year",
+                        "type": "uinteger",
+                        "label": "Founded year"
+                    }
                 ]
             }
+        },
+        {
+            "name": "company_count",
+            "type": "uinteger",
+            "label": "Number of companies"
+        },
+        {
+            "name": "active_company_count",
+            "type": "uinteger",
+            "label": "Number where the role is active"
+        },
+        {
+            "name": "konkurs_eksponering",
+            "type": "collection",
+            "label": "Bankruptcy exposure — NAME-BASED review flag, not a confirmed identity match",
+            "spec": [
+                {
+                    "name": "antall_konkursforetak",
+                    "type": "uinteger",
+                    "label": "Number of bankrupt companies with a leading role"
+                },
+                {
+                    "name": "foretak",
+                    "type": "array",
+                    "label": "The affected companies, most recent bankruptcy first",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number"
+                            },
+                            {
+                                "name": "rolletype",
+                                "type": "text",
+                                "label": "Role held"
+                            },
+                            {
+                                "name": "konkursdato",
+                                "type": "text",
+                                "label": "Bankruptcy date (YYYY-MM-DD)"
+                            },
+                            {
+                                "name": "tiltradt",
+                                "type": "text",
+                                "label": "Role assumed (YYYY-MM-DD)"
+                            },
+                            {
+                                "name": "tenure_days",
+                                "type": "uinteger",
+                                "label": "Days in the role"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "note",
+                    "type": "text",
+                    "label": "🚨 Read this before acting. Name match without a national ID — a flag for review, not a verdict. Verify identity before deciding."
+                }
+            ]
+        },
+        {
+            "name": "source",
+            "type": "text",
+            "label": "Source"
+        },
+        {
+            "name": "source_label",
+            "type": "text",
+            "label": "Source label"
         }
     ],
     "samples": {
-        "role_person_id": "rpi-demo-ola-nordmann",
+        "role_person_id": "role-aaaaaaaabbbbccccddddeeee",
         "name": "Ola Nordmann",
         "birth_year": "1975",
-        "roles": [
-            {"rolle_type": "Styreleder", "orgnr": "999999999", "navn": "Eksempel AS", "fra_dato": "2018-03-01", "til_dato": null, "signatur_alene": true, "is_active": true},
-            {"rolle_type": "Daglig leder", "orgnr": "888888888", "navn": "Tidligere AS", "fra_dato": "2012-01-01", "til_dato": "2017-12-31", "signatur_alene": false, "is_active": false}
-        ]
+        "companies": [
+            {
+                "orgnr": "912345678",
+                "company_name": "NORDMANN HOLDING AS",
+                "role_types": [
+                    "Styreleder"
+                ],
+                "active": true,
+                "founded_year": 2011
+            }
+        ],
+        "company_count": 1,
+        "active_company_count": 1,
+        "konkurs_eksponering": {
+            "antall_konkursforetak": 0,
+            "foretak": [],
+            "note": ""
+        },
+        "source": "brreg_enhetsregisteret",
+        "source_label": "Brønnøysundregistrene (Enhetsregisteret)"
     }
 }

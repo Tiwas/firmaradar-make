@@ -2,7 +2,7 @@
     "name": "firmaradar",
     "label": "Firmaradar",
     "version": 1,
-    "description": "Slå opp norske selskaper, eierstrukturer, konsern, roller, regnskap og AML/PEP-data direkte i Make.com-scenarier. Samme datakilde som Firmaradar MCP-server og n8n-pakken.",
+    "description": "Enrichment platform for Norwegian company intelligence — KYC, AML, ownership, roles, financials and risk, directly in your Make workflows.",
     "language": "en",
     "private": true,
     "countries": ["no"],
@@ -13,20 +13,25 @@
     "documentationUrl": "https://firmaradar.no/dokumentasjon",
     "supportUrl": "https://firmaradar.no/kontakt",
     "icon": {
-        "comment": "icon.png er 200x200 transparent PNG (nedskalert fra brand-marken logo/icon.png). Kan erstattes av offisiell logo-fil fra Marius før katalog-sertifisering.",
+        "comment": "icon.png is a 200x200 transparent PNG of the Firmaradar brand mark.",
         "filename": "icon.png"
     },
     "base": {
-        "baseUrl": "{{connection.baseUrl}}",
+        "//": "baseUrl is hard-coded rather than {{connection.baseUrl}}. A user-editable base URL would send the Authorization header to a server of the user's own choosing — the same leakage path Make cites when requiring a relative URL in the universal module. The connection therefore takes only apiKey.",
+        "baseUrl": "https://firmaradar.no",
         "headers": {
             "Authorization": "Bearer {{connection.apiKey}}",
             "X-FR-Client": "make-firmaradar/0.1",
             "Accept": "application/json"
         },
         "response": {
+            "output": "{{body}}",
             "error": {
                 "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
             }
+        },
+        "log": {
+            "sanitize": ["request.headers.authorization"]
         }
     }
 }

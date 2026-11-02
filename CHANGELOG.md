@@ -8,7 +8,76 @@ Formatet følger [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) og pro
 
 ## [Unreleased]
 
+### Removed
+
+- **Defekt KYC-scenariomal.** Den tidligere `templates/kyc-screening.json`
+  kunne ikke importeres og kjøres som beskrevet: den sendte orgnr til en
+  personmodul og forventet felt API-et ikke leverer. Importpåstandene er
+  fjernet fra README og landingssiden. En ny mal må eksporteres fra et
+  verifisert Make-scenario før den kan publiseres.
+
+### Changed
+
+- **Breaking — `Get recent changes` henter én side per action-kall.**
+  Automatisk paginering er fjernet fra action-modulen i tråd med Makes
+  modulregler. `items` og `next_cursor` beholdes i én responsbundle, og et
+  nytt valgfritt `cursor`-input henter neste side. Scenarioer som tidligere
+  stolte på automatisk innhenting av alle sider, må sende `next_cursor`
+  videre i en løkke.
+- **Breaking — `Get risk signals` har fått produsentens faktiske felt.**
+  `kyc_signals.signals[].type`, `.kategori` og `.beskrivelse`,
+  `interim_balance.has_interim_balance` og `.dato`, samt
+  `aggregate.risk_level` og `.signal_count` er fjernet fra Make-mappingen.
+  De fire FIV-feltene `distress.score`, `.as_of`, `.rules_fired` og
+  `.confidence` er også fjernet: klassifikatoren produserer dem ikke. Oppdater
+  eksisterende scenarioer til de faktiske kunngjøringsfeltene,
+  `interim_balance`-kildens faktiske felter og `distress.status`,
+  `distress.coverage` eller `distress.data_gaps`; bruk egen FIV-modul når du
+  trenger den fulle vurderingen.
+  `aggregate.has_distress` blir nå sant når FIV-statusen er `distressed`.
+- **Breaking — universalmodulen kan ikke lenger kalle DPA-gatete AML-stier.**
+  `Make an API call` merker egne kall og backend avviser
+  `POST /api/v1/aml/check`, `/report` og `/score` med
+  `DPA_UNIVERSAL_MODULE_FORBIDDEN`, også når den deprecerte score-ruten er i
+  synkron rollback-modus. Migrer slike scenarioer til `Check AML / PEP` eller
+  `Start AML report`; de dedikerte modulene samler formål og
+  per-kall-bekreftelse eksplisitt i Make-grensesnittet.
+- **Strukturell sti-inneslutning for universalmodulen.** En mappet verdi som
+  normaliseres ut av `/api/` (for eksempel `../ext/...`) avvises nå med
+  `MAKE_UNIVERSAL_PATH_FORBIDDEN` før den kan nå en utvidelsesmontering.
+
 ### Added
+
+- **Valgfri `page_size` i tre søkemoduler.** `Search companies`,
+  `Search announcements` og `List companies in NACE industry` kan nå hente
+  API-sider i mindre bolker enn totalgrensen `limit`. Uten `page_size` brukes
+  fortsatt `limit` som sidestørrelse.
+- **Organisasjonsnummer i to svar.** `Get group public support` har nå `orgnr`
+  på toppnivå; `Get recent changes` har `items[].orgnr` på hver hendelse.
+- **`deliveryId` på «Watch an industry (NACE)».** NACE-levering er
+  minst-én-gang (at-least-once): samme hendelse kan komme mer enn én gang.
+  Webhook `nace_changes` sprer nå bodyen og legger til `deliveryId` fra den
+  stabile `X-Firmaradar-Delivery-Id`-headeren (lik på alle nye forsøk;
+  `null` når headeren mangler), og modulen deklarerer feltet i `interface`
+  og `samples`. Additivt — eksisterende felter beholder navn og verdi.
+  Dedupliser på Delivery ID før moduler med sideeffekter — bare når den
+  finnes og ikke er tom; er den tom, behandle hver leveranse som en egen
+  hendelse.
+- **Universalmodul «Make an API call».** Når et endepunkt ikke dekkes av en
+  dedikert modul, kan det nå kalles direkte. Stien er **relativ** — skråstreken
+  ligger i modulmalen, ikke i verdien du oppgir, og ledende skråstrek,
+  backslash og kontrolltegn avvises. Det er bevisst: en absolutt URL ville
+  sendt `Authorization`-headeren til en server du selv velger.
+- **Modulgrupper.** Modulvelgeren er delt i `Companies`, `People`,
+  `Risk and signals`, `AML`, `Search` og `Other` i stedet for én lang liste.
+- **Modulreferanse i selve appen.** Alle moduler med endepunkt, konvensjoner
+  for datoer, paginering og feil, kvoter og tilgangsgater — tilgjengelig uten
+  å slå opp eksternt.
+- **Cursor-paginering** i selskaps- og kunngjøringssøket og NACE-listingen.
+  `Get recent changes` har manuell cursor (se *Changed*). `Search persons` pagineres ikke: endepunktet har
+  verken cursor, offset eller page, og 100 treff er et tak i APIet.
+- **Output-samples** på `Find related companies`,
+  `List companies in NACE industry` og `Search announcements`.
 - **FIV-konsernvurdering (to-nivå-test).** `check_fiv` og `check_fiv_bulk`
   vurderer nå både selskaps- og konsernleddet, jf. GBER art. 2(18)
   (EU-forordning 651/2014). Nye felter i responsen: `company_status`
@@ -35,8 +104,7 @@ Formatet følger [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) og pro
   for dette regelverket. Rettet til korrekt referanse: EU-forordning
   651/2014 (gruppeunntaksforordningen/GBER) art. 2(18), kriteriene (a)-(e).
   Kriterie-betegnelsen «a-e» er uendret — det var kun «NUES»-navnet på selve
-  regelverket som var feil. Se `docs/juridisk/FIV_METHODOLOGY.md` for
-  autoritativ metodikk.
+  regelverket som var feil.
 - **Instant triggers (webhook-baserte).** Første triggere i appen — starter et
   scenario når noe skjer, i stedet for å polle:
   - `watch_company_changes` («Watch a company») + webhook `company_changes` —
@@ -90,8 +158,57 @@ Formatet følger [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) og pro
   Totalt 19 action/search-moduler (8 → 19) + 2 instant-triggere.
 
 ### Changed
-- «Get IP portfolio» bruker nå det dedikerte `/api/v1/company/{orgnr}/ip`-endepunktet
-  (renere enn `?ip=1`). Uendret utdata (`ip_rettigheter`).
+
+- **Dokumentasjonen er delt etter målgruppe.** `README.md` er nå pilot-guiden på
+  norsk — installasjon, tilkobling, bruk, priser — og `readme_sdk.md` er
+  connector-referansen på engelsk, med hver modul, endepunktet den kaller og
+  kontrakten rundt den.
+  README-en gjentar ikke referansen; den peker på den. Bakgrunnen var at fila
+  blandet to lesere: norske pilotbrukere og eksterne som importerer repoet.
+  Referansen ble IKKE en ny fil: alle 26 live-moduler var allerede dokumentert i
+  `readme_sdk.md`, så en tredje fil ville duplisert den flaten som faktisk
+  publiseres som appens readme i Make. Framgangsmåten for å importere repoet som
+  privat app — med felle-notatene om `groups.json` — står i `IMPORTING.md`. Den
+  er ikke pilotbruk, og en Make-reviewer kan ikke følge den inne i appen, så den
+  hører hjemme utenfor appens readme — men den følger med til det offentlige
+  repoet, som er der importørene faktisk er.
+- `Get IP portfolio` kaller igjen den dedikerte `/api/v1/company/<orgnr>/ip`-ruten.
+  Den live appen sto på `?ip=1`, og en synk fra live overskrev referansefila som
+  allerede hadde det riktig. Responsen er den samme (`ip_rettigheter`), men rutene
+  er ulikt vektet i metering: query-formen faktureres 1 kreditt, den dedikerte 5.
+  Query-formen underfakturerte altså det eksterne Patentstyret-kallet femdobbelt.
+- Registerdatoene (`registreringsdato`, `stiftelsesdato`, `konkursdato`,
+  `avviklingsdato`, kunngjøringenes `dato`) er nå `text`. De er dato-uten-tid,
+  og `date`-typen kunne forskyve dagen med én utenfor UTC. `as_of` i
+  FIV-modulene er et faktisk tidsstempel og forblir `date`.
+- Dato-input formateres til `YYYY-MM-DD` før den sendes, så en dato valgt i
+  norsk tidssone ikke havner på dagen før.
+- `Limit` er `uinteger` i alle moduler, og søkemodulenes default er 10.
+- Setningskasus på alle modulnavn, og alle beskrivelser i tredjeperson presens.
+- Connection: engelsk hjelpetekst og feilmelding, og feiltypen
+  `InvalidAccessTokenError` i stedet for den ugyldige `AuthorizationError`.
+  Base-URL-en er ikke lenger et redigerbart felt.
+
+
+### Fixed
+
+- `Get ownership` hadde **retningene invertert**: `down` beskrev eiere og `up`
+  datterselskaper, mens APIet gjør det motsatte. Modulen deklarerte dessuten
+  `subsidiaries`, som APIet aldri returnerer — feltet var alltid tomt. Riktig
+  nøkkel er `holdings`, og den er et objekt med en nested liste, ikke en array.
+- `Get recent changes` sendte en `days`-parameter endepunktet ikke leser, så
+  «filtrer på antall dager» gjorde ingenting. Den deklarerte også `endringer`
+  og `antall`, mens responsen har `items` og `count`. Erstattet med `limit` +
+  cursor-paginering og riktige utdatafelter.
+- `Check AML / PEP` beskrev seg som screening av et selskaps styreleder,
+  daglig leder og signaturberettigede. Endepunktet tar et personnavn og
+  screener **én person**.
+- `Find shared connections` deklarerte ett felt, `shared`, som ikke finnes i
+  responsen. De fjorten faktiske feltene er nå eksponert.
+- `Search companies` pekte på en sti som svarer 404, og brukte parameternavnet
+  `query` der endepunktet tar `q`.
+- `Get roles` brukte `include_retired`; endepunktet tar `include_historic`.
+- `Search persons` respekterte ikke `Limit` — alle treff ble sendt videre.
 
 ## [0.1.0] — 2026-05-27
 
@@ -110,14 +227,14 @@ Første offentlige release.
   - `check_aml_pep` — AML/PEP-screening (POST) med `purpose`-tagging for audit-log
   - `get_recent_changes` — endringer siste N dager
 - **IML-helpers** (`functions/helpers.iml.js`) — `isValidOrgnr`, `normalizeOrgnr`, `extractError`, `isHighRiskStatus`.
-- **Scenario-mal** (`templates/kyc-screening.json`) — webhook-trigger → AML/PEP-sjekk + eierskap → router (Slack ved høy risiko, Google Sheets ellers).
+- **Scenario-mal (trukket tilbake i Unreleased)** — den opprinnelige
+  KYC-blueprinten var ikke kjørbar med de publiserte modulkontraktene.
 - **GitHub Pages landing-side** (`docs/index.html`) på engelsk.
 - **Norsk markeds-README** og denne `CHANGELOG.md`.
 - **Apache 2.0 LICENSE**.
 
 ### Kjente begrensninger
 
-- Logo-filene leveres av Marius og er ennå ikke inkludert i `icon`-feltet i `app.json` (plassholder-referanse til `icon.png`).
 - Make.com developer-konto og privat-app-skall opprettes manuelt før submission til den offentlige katalogen.
 - Modulene `get_signals`, `search_persons`, `get_person_roles`, `get_person_companies`, `check_fiv`, `get_risk_score` og `get_konsernstotte` er planlagt for senere versjoner (levert i [Unreleased]). `get_announcements`, `search_announcements`, `compare_companies`, `list_companies_in_nace`, `find_related_companies`, `find_shared_connections` og `get_aml_score` gjenstår.
 
@@ -135,14 +252,14 @@ Første offentlige release.
 ### [0.2.0]
 
 - 6 moduler lagt i kilde (`modules/`) OG pushet live til Custom App
-  `firmaradar-p9vj9v` 07-09 via `scripts/make_sdk_push.py` (Make Apps SDK-API):
+  `firmaradar-p9vj9v` 07-09 via Make Apps SDK-API:
   `get_announcements`, `search_announcements`, `compare_companies`,
   `list_companies_in_nace`, `find_related_companies`, `find_shared_connections`
   (live-navn i camelCase: `getAnnouncements` osv.). Appen har nå 25 moduler.
 - `icon.png` lagt til (200x200 transparent PNG, nedskalert brand-mark).
 - `get_aml_score` («Get AML score») lagt til i kilde (`modules/`) — mirrorer
   live-modulen `getAmlScore` (`POST /api/v1/aml/score`). Endepunktet er
-  deprecert (Lars-vedtak 2026-07-07, kostnadsmatrise §4.6 + pen-test B1) og
+  markert som foreldet av sikkerhets- og kostnadshensyn og
   svarer `202` med samme payload-form som «Start AML report» (`rapport_id`,
   `orgnr`, `status`, kanonisk `poll_url` mot `/api/v1/aml/report/<id>`), pluss
   `deprecated: true` + migreringsmelding. Modulen dekker bakoverkompatibilitet;

@@ -1,73 +1,98 @@
 {
     "name": "search_persons",
     "label": "Search persons",
-    "description": "Search person shareholders and role holders by name, with fuzzy matching (initial expansion, middle-name dropping). Returns two result sets — shareholders and role persons — each with a stable key you can feed into 'Get person roles' or 'Get person companies'. Requires full-search access; minors are filtered out. Birth year is masked to a 4-digit year.",
+    "description": "Searches for shareholders and role holders by name, with fuzzy matching (initial expansion, middle-name dropping). Returns two result sets — shareholders and role persons — each with a stable key you can use in ‘Get person roles’ or ‘Get person shareholdings’. Requires full-search access; minors are filtered out. Birth year is masked to a 4-digit year.",
     "connection": "apiKey",
     "type": "search",
+    "crud": "read",
     "parameters": [
         {
+            "help": "The person's name (at least 2 characters). Fuzzy matched.",
             "name": "q",
             "type": "text",
             "label": "Name",
             "required": true,
-            "help": "Person name (minimum 2 characters). Fuzzy matched.",
             "validate": {
                 "min": 2
             }
         },
         {
+            "help": "Max number of results per result set (1–100).",
             "name": "limit",
             "type": "uinteger",
-            "label": "Max results",
-            "default": 30,
+            "label": "Max number",
+            "default": 10,
             "validate": {
-                "min": 1,
-                "max": 100
-            },
-            "help": "Maximum number of matches per result set (1-100)."
+                "max": 100,
+                "min": 1
+            }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/person/search",
+        "url": "/api/v1/person/search",
         "method": "GET",
         "qs": {
             "q": "{{parameters.q}}",
             "limit": "{{parameters.limit}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "iterate": "{{merge(body.shareholders, body.role_persons)}}",
+            "iterate": "{{merge(slice(body.role_persons, 0, parameters.limit), slice(body.shareholders, 0, parameters.limit))}}",
             "output": {
-                "name": "{{item.name}}",
+                "name": "{{ifempty(item.name, item.owner_name)}}",
                 "birth_year": "{{item.birth_year}}",
                 "owner_person_key": "{{item.owner_person_key}}",
                 "role_person_id": "{{item.role_person_id}}",
                 "poststed": "{{item.poststed}}",
-                "antall_selskaper": "{{item.antall_selskaper}}"
+                "shareholding_count": "{{item.shareholding_count}}",
+                "country_code": "{{item.country_code}}"
             },
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
-        }
+            "limit": "{{parameters.limit * 2}}"
+        },
+        "//": "The Limit is documented as 'per result set', and the endpoint returns TWO sets. Each array is therefore sliced to Limit and response.limit allows Limit from EACH — up to 2x Limit bundles in total. 🪤 A single total cap starves one set: with shareholders merged first, a common surname filled the cap and no role_person_id was ever emitted, so 'Get person roles' was unreachable. Simply reversing the order moved the starvation onto shareholders instead — measured, both directions fail. Slicing each set AND raising the response cap is what makes both keys reachable, and it matches the parameter's own documented meaning."
     },
     "interface": [
-        {"name": "name", "type": "text", "label": "Navn"},
-        {"name": "birth_year", "type": "text", "label": "Fødselsår (maskert)"},
-        {"name": "owner_person_key", "type": "text", "label": "Eier-person-nøkkel (for aksjebeholdninger)"},
-        {"name": "role_person_id", "type": "text", "label": "Rolle-person-ID (for roller)"},
-        {"name": "poststed", "type": "text", "label": "Poststed"},
-        {"name": "antall_selskaper", "type": "uinteger", "label": "Antall selskaper"}
+        {
+            "name": "name",
+            "type": "text",
+            "label": "Name (normalised across both result sets)"
+        },
+        {
+            "name": "birth_year",
+            "type": "text",
+            "label": "Birth year (masked)"
+        },
+        {
+            "name": "owner_person_key",
+            "type": "text",
+            "label": "Owner-person key (shareholder hits)"
+        },
+        {
+            "name": "role_person_id",
+            "type": "text",
+            "label": "Role-person ID (role-person hits)"
+        },
+        {
+            "name": "poststed",
+            "type": "text",
+            "label": "Postal town"
+        },
+        {
+            "name": "shareholding_count",
+            "type": "uinteger",
+            "label": "Number of shareholdings (shareholder hits)"
+        },
+        {
+            "name": "country_code",
+            "type": "text",
+            "label": "Country code"
+        }
     ],
     "samples": {
         "name": "Ola Nordmann",
         "birth_year": "1975",
-        "owner_person_key": "opk-demo-ola-nordmann",
-        "role_person_id": "rpi-demo-ola-nordmann",
+        "owner_person_key": "person-1975-aaaaaaaabbbbccccddddeeee",
         "poststed": "Oslo",
-        "antall_selskaper": 4
+        "shareholding_count": 3,
+        "country_code": "NO"
     }
 }

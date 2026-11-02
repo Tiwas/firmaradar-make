@@ -1,53 +1,44 @@
 {
     "name": "check_fiv_bulk",
     "label": "Bulk: distress check (FIV)",
-    "description": "Portfolio distress-screening (foretak i vanskeligheter under the EU state-aid rules on companies in difficulty, GBER art. 2(18) criteria a-e) for up to 50 companies in one call, each assessed at both company and group level. Each orgnr is evaluated independently; per-orgnr compliance-gates (ENK block, invalid orgnr) are returned as a per-orgnr error instead of failing the whole batch. Each orgnr counts as one unit against your quota.",
+    "description": "Screens up to 50 companies for distress (GBER art. 2(18), criteria a–e). Each orgnr is assessed independently, including sole proprietorships (ENK). The outer response stays 200; inspect results[].error for each company before using its result. invalid_orgnr is the only GATE code. Extension or data-provider failures can appear in results[].error; runtime control failures have a stable results[].error_code (rate_limit_exceeded or compliance_gate_*). The error text may be human-readable, and bulk processing can add internal_error. This module needs no external authorization. Each orgnr counts as one unit against your quota.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "1–50 nine-digit Norwegian organization numbers (orgnr). Each orgnr counts as one unit against your quota.",
             "name": "orgnrs",
-            "type": "array",
-            "label": "Organisation numbers (max 50)",
-            "required": true,
-            "help": "1-50 nine-digit Norwegian organisation numbers. Each orgnr counts as one unit against your quota.",
             "spec": {
                 "name": "orgnr",
                 "type": "text",
-                "label": "Organisation number",
+                "label": "Organization number",
                 "validate": {
                     "pattern": "^[0-9]{9}$",
-                    "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                    "patternErrorMessage": "Must be exactly 9 digits."
                 }
-            }
+            },
+            "type": "array",
+            "label": "Organization numbers (max 50)",
+            "required": true
         },
         {
+            "help": "Accept FIV data even if the underlying financials/BRREG snapshot is older than the normal freshness window (retrospective screening).",
             "name": "skip_freshness",
             "type": "boolean",
             "label": "Skip freshness window",
-            "required": false,
             "default": false,
-            "help": "Accept FIV data even if the underlying financial/BRREG snapshot is older than the normal freshness window (retrospective screening)."
+            "required": false
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/fiv/bulk",
+        "url": "/api/v1/fiv/bulk",
         "method": "POST",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
         "body": {
             "orgnrs": "{{parameters.orgnrs}}",
             "skip_freshness": "{{parameters.skip_freshness}}"
         },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
@@ -58,57 +49,734 @@
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-                    {"name": "status", "type": "text", "label": "FIV-status — reflekterer begge nivåer"},
-                    {"name": "error", "type": "text", "label": "Per-orgnr feil (hvis noen)"},
-                    {"name": "score", "type": "number", "label": "Score"},
-                    {"name": "confidence", "type": "number", "label": "Konfidens"},
-                    {"name": "company_status", "type": "text", "label": "Selskaps-leddet alene (før konsern-leddet)"},
-                    {"name": "distress_basis", "type": "text", "label": "Grunnlag: company / group / company_and_group"},
+                    {
+                        "name": "orgnr",
+                        "type": "text",
+                        "label": "Organization number"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "label": "FIV status — reflects both the company and the group level"
+                    },
+                    {
+                        "name": "verdict",
+                        "type": "collection",
+                        "label": "Qualified verdict",
+                        "spec": [
+                            {
+                                "name": "verdict",
+                                "type": "text",
+                                "label": "Verdict — unqualified (‘Ja’/‘Nei’). Read has_caveat before using this alone."
+                            },
+                            {
+                                "name": "verdict_en",
+                                "type": "text",
+                                "label": "Verdict en"
+                            },
+                            {
+                                "name": "label",
+                                "type": "text",
+                                "label": "Verdict text as displayed, incl. caveat marker (e.g. ‘Nei (*)’)"
+                            },
+                            {
+                                "name": "label_en",
+                                "type": "text",
+                                "label": "Label en"
+                            },
+                            {
+                                "name": "has_caveat",
+                                "type": "boolean",
+                                "label": "Verdict is CAVEATED — read the footnote"
+                            },
+                            {
+                                "name": "footnote",
+                                "type": "text",
+                                "label": "What the caveat means"
+                            },
+                            {
+                                "name": "footnote_en",
+                                "type": "text",
+                                "label": "Footnote en"
+                            },
+                            {
+                                "name": "variant",
+                                "type": "text",
+                                "label": "Variant"
+                            },
+                            {
+                                "name": "description",
+                                "type": "text",
+                                "label": "Description"
+                            },
+                            {
+                                "name": "description_en",
+                                "type": "text",
+                                "label": "Description en"
+                            },
+                            {
+                                "name": "distress_basis",
+                                "type": "text",
+                                "label": "Distress basis"
+                            },
+                            {
+                                "name": "rescuable_by_group",
+                                "type": "boolean",
+                                "label": "Rescuable by group"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "error",
+                        "type": "text",
+                        "label": "Per-orgnr error (if any)"
+                    },
+                    {
+                        "name": "message",
+                        "type": "text",
+                        "label": "Human-readable runtime-control detail"
+                    },
+                    {
+                        "name": "error_code",
+                        "type": "text",
+                        "label": "Stable runtime-control error code"
+                    },
+                    {
+                        "name": "retry_after",
+                        "type": "text",
+                        "label": "Retry-After value when rate limited"
+                    },
+                    {
+                        "name": "http_status",
+                        "type": "uinteger",
+                        "label": "Per-company HTTP status inside the outer HTTP-200 bulk response"
+                    },
+                    {
+                        "name": "classifier_version",
+                        "type": "text",
+                        "label": "Classifier version"
+                    },
+                    {
+                        "name": "classifier_version_sequence",
+                        "type": "uinteger",
+                        "label": "Classifier rule-set sequence (monotonic — higher means newer rules)"
+                    },
+                    {
+                        "name": "company_status",
+                        "type": "text",
+                        "label": "Company level alone (before the group level is applied)"
+                    },
+                    {
+                        "name": "distress_basis",
+                        "type": "text",
+                        "label": "Basis: company / group / company_and_group"
+                    },
                     {
                         "name": "group_assessment",
                         "type": "collection",
-                        "label": "Konsern-leddet (to-nivå-testen, GBER art. 2(18))",
+                        "label": "Group level (two-tier test, GBER art. 2(18))",
                         "spec": [
-                            {"name": "evaluated", "type": "boolean", "label": "Selskapet inngår i et konsern"},
-                            {"name": "status", "type": "text", "label": "Konsern-status: clean/distressed/doubt/unknown"},
-                            {"name": "basis", "type": "text", "label": "Databasis: konsernregnskap/aggregert_selskapsregnskap/utenlandsk_majoritet/ingen_data"},
-                            {"name": "root_orgnr", "type": "text", "label": "Konsernspissens orgnr"},
-                            {"name": "root_name", "type": "text", "label": "Konsernspissens navn"},
-                            {"name": "members_total", "type": "uinteger", "label": "Antall selskaper i treet"},
-                            {"name": "members_evaluated", "type": "uinteger", "label": "Antall med regnskapsdata"},
+                            {
+                                "name": "evaluated",
+                                "type": "boolean",
+                                "label": "The company belongs to a group"
+                            },
+                            {
+                                "name": "status",
+                                "type": "text",
+                                "label": "Group status: clean/distressed/doubt/unknown"
+                            },
+                            {
+                                "name": "basis",
+                                "type": "text",
+                                "label": "Data basis: konsernregnskap / aggregert_selskapsregnskap / utenlandsk_majoritet / ingen_data"
+                            },
+                            {
+                                "name": "root_distressed",
+                                "type": "boolean",
+                                "label": "The group parent is itself in difficulty — empty means NOT DETERMINED, not healthy"
+                            },
+                            {
+                                "name": "root_orgnr",
+                                "type": "text",
+                                "label": "Group parent organization number"
+                            },
+                            {
+                                "name": "root_name",
+                                "type": "text",
+                                "label": "Group parent name"
+                            },
+                            {
+                                "name": "members_total",
+                                "type": "uinteger",
+                                "label": "Number of companies in the tree"
+                            },
+                            {
+                                "name": "members_evaluated",
+                                "type": "uinteger",
+                                "label": "Number with financial data"
+                            },
                             {
                                 "name": "members_distressed",
                                 "type": "array",
-                                "label": "Selskaper i konsernet som hver for seg er FIV",
+                                "label": "Companies in the group that are individually in difficulty",
                                 "spec": {
                                     "type": "collection",
                                     "spec": [
-                                        {"name": "orgnr", "type": "text", "label": "Orgnr"},
-                                        {"name": "navn", "type": "text", "label": "Navn"},
+                                        { "name": "orgnr", "type": "text", "label": "Organization number" },
+                                        { "name": "navn", "type": "text", "label": "Company name" },
+                                        { "name": "triggers", "type": "array", "label": "Triggered criteria", "spec": { "type": "text" } }
+                                    ]
+                                }
+                            },
+                            {
+                                "name": "capital_loss_ratio",
+                                "type": "number",
+                                "label": "Share of the group's paid-in capital that is lost"
+                            },
+                            {
+                                "name": "distressed_capital_share",
+                                "type": "number",
+                                "label": "Informational share of group capital held by individually distressed members"
+                            },
+                            {
+                                "name": "data_year",
+                                "type": "uinteger",
+                                "label": "Financial statement year used for the group assessment"
+                            },
+                            {
+                                "name": "disclaimers",
+                                "type": "array",
+                                "label": "Group assessment caveat codes",
+                                "spec": { "type": "text" }
+                            },
+                            {
+                                "name": "truncated",
+                                "type": "boolean",
+                                "label": "Tree truncated (more than 500 companies)"
+                            },
+                            {
+                                "name": "size_ansatte_sum",
+                                "type": "uinteger",
+                                "label": "Employees in the control tree (indicative headcount)"
+                            },
+                            {
+                                "name": "size_driftsinntekter_sum_nok",
+                                "type": "number",
+                                "label": "Operating revenue in the control tree (NOK)"
+                            },
+                            {
+                                "name": "size_balansesum_sum_nok",
+                                "type": "number",
+                                "label": "Total assets in the control tree (NOK)"
+                            },
+                            {
+                                "name": "size_ansatte_complete",
+                                "type": "boolean",
+                                "label": "The employee figure is a complete annual work unit (AWU) measure"
+                            },
+                            {
+                                "name": "size_driftsinntekter_complete",
+                                "type": "boolean",
+                                "label": "The operating-revenue sum is complete"
+                            },
+                            {
+                                "name": "size_balansesum_complete",
+                                "type": "boolean",
+                                "label": "The total-assets sum is complete"
+                            },
+                            {
+                                "name": "has_public_controller",
+                                "type": "boolean",
+                                "label": "Controlled by a public body"
+                            },
+                            {
+                                "name": "size_sum_is_consolidated",
+                                "type": "boolean",
+                                "label": "The financial sums come from consolidated group accounts"
+                            },
+                            {
+                                "name": "public_controller_unknown",
+                                "type": "boolean",
+                                "label": "Public control could not be determined"
+                            },
+                            {
+                                "name": "root_org_form",
+                                "type": "text",
+                                "label": "Group parent organization form"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "rescuable_by_group",
+                        "type": "boolean",
+                        "label": "The group could remedy the situation with a capital injection"
+                    },
+                    {
+                        "name": "rescue_estimate",
+                        "type": "collection",
+                        "label": "What the group must contribute to clear capital criterion (a)",
+                        "spec": [
+                            {
+                                "name": "konsernbidrag_min_nok",
+                                "type": "number",
+                                "label": "Minimum group contribution / grant (NOK)"
+                            },
+                            {
+                                "name": "kapitalforhoyelse_min_nok",
+                                "type": "number",
+                                "label": "Minimum capital increase (NOK)"
+                            },
+                            {
+                                "name": "frist",
+                                "type": "text",
+                                "label": "Deadline (no later than when the aid is granted)"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "size_assessment",
+                        "type": "collection",
+                        "label": "SME/large status under the two-period rule (2003/361/EC art. 4(2))",
+                        "spec": [
+                            {
+                                "name": "status",
+                                "type": "text",
+                                "label": "Status (SMB, LARGE or UNKNOWN)"
+                            },
+                            {
+                                "name": "rule",
+                                "type": "text",
+                                "label": "Rule"
+                            },
+                            {
+                                "name": "ref",
+                                "type": "number",
+                                "label": "Stored size result"
+                            },
+                            {
+                                "name": "assessment_cutoff_at",
+                                "type": "text",
+                                "label": "Size evidence read at"
+                            },
+                            {
+                                "name": "periods",
+                                "type": "array",
+                                "label": "Periods",
+                                "spec": {
+                                    "type": "collection",
+                                    "spec": [
                                         {
-                                            "name": "triggers",
-                                            "type": "array",
-                                            "label": "Utløste kriterier",
-                                            "spec": {"type": "text"}
+                                            "name": "period_end",
+                                            "type": "text",
+                                            "label": "Period end"
+                                        },
+                                        {
+                                            "name": "status",
+                                            "type": "text",
+                                            "label": "Status"
+                                        },
+                                        {
+                                            "name": "relations_complete",
+                                            "type": "boolean",
+                                            "label": "Relations complete"
+                                        },
+                                        {
+                                            "name": "awu_presumed",
+                                            "type": "boolean",
+                                            "label": "Annual work units estimated"
                                         }
                                     ]
                                 }
                             },
-                            {"name": "capital_loss_ratio", "type": "number", "label": "Andel av konsernets innskutte kapital som er tapt"},
-                            {"name": "truncated", "type": "boolean", "label": "Treet avkortet (over 500 selskaper)"}
+                            {
+                                "name": "flags",
+                                "type": "array",
+                                "label": "Flags",
+                                "spec": {
+                                    "type": "text"
+                                }
+                            }
                         ]
                     },
-                    {"name": "rescuable_by_group", "type": "boolean", "label": "Konsernet kan rette opp forholdet med kapitaltilførsel (\"Ja (!)\")"},
                     {
-                        "name": "rescue_estimate",
+                        "name": "_meta",
+                        "type": "any",
+                        "label": " meta"
+                    },
+                    {
+                        "name": "assessed_at",
+                        "type": "text",
+                        "label": "Assessed at"
+                    },
+                    {
+                        "name": "company_size",
+                        "type": "text",
+                        "label": "Company size"
+                    },
+                    {
+                        "name": "coverage",
+                        "type": "text",
+                        "label": "Coverage: 'complete' or 'incomplete' — incomplete means the verdict is NOT fully assessed"
+                    },
+                    {
+                        "name": "criteria_detail",
                         "type": "collection",
-                        "label": "Hva konsernet må tilføre for å fjerne kapitalkriteriet (a)",
+                        "label": "Criteria detail",
                         "spec": [
-                            {"name": "konsernbidrag_min_nok", "type": "number", "label": "Minste konsernbidrag/tilskudd (NOK)"},
-                            {"name": "kapitalforhoyelse_min_nok", "type": "number", "label": "Minste kapitalforhøyelse (NOK)"},
-                            {"name": "frist", "type": "text", "label": "Frist (senest ved godkjenningstidspunktet for støtten)"}
+                            {
+                                "name": "bankruptcy",
+                                "type": "collection",
+                                "label": "Bankruptcy",
+                                "spec": [
+                                    {
+                                        "name": "passed",
+                                        "type": "text",
+                                        "label": "Passed"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "type": "any",
+                                        "label": "Values"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "accumulated_losses",
+                                "type": "collection",
+                                "label": "Accumulated losses",
+                                "spec": [
+                                    {
+                                        "name": "passed",
+                                        "type": "text",
+                                        "label": "Passed"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "type": "any",
+                                        "label": "Values"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "gearing_and_coverage",
+                                "type": "collection",
+                                "label": "Gearing and coverage",
+                                "spec": [
+                                    {
+                                        "name": "passed",
+                                        "type": "text",
+                                        "label": "Passed"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "type": "any",
+                                        "label": "Values"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "rescue_aid",
+                                "type": "collection",
+                                "label": "Rescue aid",
+                                "spec": [
+                                    {
+                                        "name": "passed",
+                                        "type": "text",
+                                        "label": "Passed"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "type": "any",
+                                        "label": "Values"
+                                    }
+                                ]
+                            }
                         ]
+                    },
+                    {
+                        "name": "data_gaps",
+                        "type": "array",
+                        "label": "Inputs that were missing",
+                        "spec": {
+                            "type": "text"
+                        }
+                    },
+                    {
+                        "name": "disclaimers",
+                        "type": "array",
+                        "label": "Disclaimers attached to this classification",
+                        "spec": {
+                            "type": "text"
+                        }
+                    },
+                    {
+                        "name": "foreign_ownership",
+                        "type": "collection",
+                        "label": "Foreign ownership",
+                        "spec": [
+                            {
+                                "name": "foreign_ownership_pct",
+                                "type": "number",
+                                "label": "Foreign ownership pct"
+                            },
+                            {
+                                "name": "country_codes",
+                                "type": "array",
+                                "label": "Country codes",
+                                "spec": {
+                                    "type": "text"
+                                }
+                            },
+                            {
+                                "name": "snapshot_year",
+                                "type": "uinteger",
+                                "label": "Snapshot year"
+                            },
+                            {
+                                "name": "computed_at",
+                                "type": "text",
+                                "label": "Computed at"
+                            },
+                            {
+                                "name": "has_foreign_owners",
+                                "type": "boolean",
+                                "label": "Has foreign owners"
+                            },
+                            {
+                                "name": "is_norwegian_only",
+                                "type": "boolean",
+                                "label": "Is norwegian only"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "foundation_year",
+                        "type": "uinteger",
+                        "label": "Foundation year"
+                    },
+                    {
+                        "name": "is_konsern",
+                        "type": "boolean",
+                        "label": "Is konsern"
+                    },
+                    {
+                        "name": "not_evaluated_blocks_green",
+                        "type": "boolean",
+                        "label": "Unevaluated blocks prevent a clean result — 'no' is NOT a clean bill"
+                    },
+                    {
+                        "name": "not_evaluated_checks",
+                        "type": "array",
+                        "label": "Not evaluated checks",
+                        "spec": {
+                            "type": "text"
+                        }
+                    },
+                    {
+                        "name": "overall_status",
+                        "type": "text",
+                        "label": "Overall status"
+                    },
+                    {
+                        "name": "reason",
+                        "type": "text",
+                        "label": "Reason"
+                    },
+                    {
+                        "name": "rule_results",
+                        "type": "collection",
+                        "label": "Rule results",
+                        "spec": [
+                            {
+                                "name": "a_capital_loss",
+                                "type": "collection",
+                                "label": "A capital loss",
+                                "spec": [
+                                    {
+                                        "name": "status",
+                                        "type": "text",
+                                        "label": "Status"
+                                    },
+                                    {
+                                        "name": "reason",
+                                        "type": "text",
+                                        "label": "Reason"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "type": "any",
+                                        "label": "Data"
+                                    },
+                                    {
+                                        "name": "notes",
+                                        "type": "array",
+                                        "label": "Notes",
+                                        "spec": {
+                                            "type": "text"
+                                        }
+                                    },
+                                    {
+                                        "name": "basis",
+                                        "type": "any",
+                                        "label": "Basis"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "b_unlimited_liability",
+                                "type": "collection",
+                                "label": "B unlimited liability",
+                                "spec": [
+                                    {
+                                        "name": "status",
+                                        "type": "text",
+                                        "label": "Status"
+                                    },
+                                    {
+                                        "name": "reason",
+                                        "type": "text",
+                                        "label": "Reason"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "type": "any",
+                                        "label": "Data"
+                                    },
+                                    {
+                                        "name": "notes",
+                                        "type": "array",
+                                        "label": "Notes",
+                                        "spec": {
+                                            "type": "text"
+                                        }
+                                    },
+                                    {
+                                        "name": "basis",
+                                        "type": "any",
+                                        "label": "Basis"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "c_insolvency",
+                                "type": "collection",
+                                "label": "C insolvency",
+                                "spec": [
+                                    {
+                                        "name": "status",
+                                        "type": "text",
+                                        "label": "Status"
+                                    },
+                                    {
+                                        "name": "reason",
+                                        "type": "text",
+                                        "label": "Reason"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "type": "any",
+                                        "label": "Data"
+                                    },
+                                    {
+                                        "name": "notes",
+                                        "type": "array",
+                                        "label": "Notes",
+                                        "spec": {
+                                            "type": "text"
+                                        }
+                                    },
+                                    {
+                                        "name": "basis",
+                                        "type": "any",
+                                        "label": "Basis"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "d_rescue_aid",
+                                "type": "collection",
+                                "label": "D rescue aid",
+                                "spec": [
+                                    {
+                                        "name": "status",
+                                        "type": "text",
+                                        "label": "Status"
+                                    },
+                                    {
+                                        "name": "reason",
+                                        "type": "text",
+                                        "label": "Reason"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "type": "any",
+                                        "label": "Data"
+                                    },
+                                    {
+                                        "name": "notes",
+                                        "type": "array",
+                                        "label": "Notes",
+                                        "spec": {
+                                            "type": "text"
+                                        }
+                                    },
+                                    {
+                                        "name": "basis",
+                                        "type": "any",
+                                        "label": "Basis"
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "e_gearing_coverage",
+                                "type": "collection",
+                                "label": "E gearing coverage",
+                                "spec": [
+                                    {
+                                        "name": "status",
+                                        "type": "text",
+                                        "label": "Status"
+                                    },
+                                    {
+                                        "name": "reason",
+                                        "type": "text",
+                                        "label": "Reason"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "type": "any",
+                                        "label": "Data"
+                                    },
+                                    {
+                                        "name": "notes",
+                                        "type": "array",
+                                        "label": "Notes",
+                                        "spec": {
+                                            "type": "text"
+                                        }
+                                    },
+                                    {
+                                        "name": "basis",
+                                        "type": "any",
+                                        "label": "Basis"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "status_en",
+                        "type": "text",
+                        "label": "Status en"
+                    },
+                    {
+                        "name": "triggers",
+                        "type": "array",
+                        "label": "Triggers",
+                        "spec": {
+                            "type": "text"
+                        }
                     }
                 ]
             }
@@ -116,11 +784,23 @@
         {
             "name": "_meta",
             "type": "collection",
-            "label": "Aggregat",
+            "label": "Aggregate",
             "spec": [
-                {"name": "total_requested", "type": "number", "label": "Antall forespurt"},
-                {"name": "successful", "type": "number", "label": "Vellykket"},
-                {"name": "failed", "type": "number", "label": "Feilet"}
+                {
+                    "name": "total_requested",
+                    "type": "number",
+                    "label": "Number requested"
+                },
+                {
+                    "name": "successful",
+                    "type": "number",
+                    "label": "Successful"
+                },
+                {
+                    "name": "failed",
+                    "type": "number",
+                    "label": "Failed"
+                }
             ]
         }
     ],
@@ -128,9 +808,8 @@
         "results": [
             {
                 "orgnr": "999999999",
+                "classifier_version_sequence": 9,
                 "status": "not_distressed",
-                "score": 0,
-                "confidence": 1,
                 "company_status": "not_distressed",
                 "distress_basis": null,
                 "group_assessment": {
@@ -138,21 +817,39 @@
                     "status": "unknown",
                     "basis": "ingen_data",
                     "root_orgnr": null,
+                    "root_distressed": null,
                     "root_name": null,
                     "members_total": null,
                     "members_evaluated": null,
                     "members_distressed": [],
                     "capital_loss_ratio": null,
+                    "distressed_capital_share": null,
+                    "data_year": null,
+                    "disclaimers": [],
                     "truncated": false
                 },
                 "rescuable_by_group": false,
-                "rescue_estimate": null
+                "rescue_estimate": null,
+                "verdict": {
+                    "verdict": "Nei",
+                    "verdict_en": "No",
+                    "label": "Nei (*)",
+                    "label_en": "No (*)",
+                    "has_caveat": true,
+                    "footnote": "Vurdert på tilgjengelige registerdata og eventuelle attesterte størrelsesbevis (regnskap, BRREG-status inkl. insolvensbehandling, og Støtteregisteret). Rednings-/omstruktureringsstøtte er notifisert støtte utenfor GBER og merkes ikke separat i registeret — antas fraværende. Ikke en juridisk konklusjon om statsstøtte-kvalifikasjon.",
+                    "footnote_en": "Assessed using available registry data and any attested size evidence (financial statements, BRREG status incl. insolvency proceedings, and the Norwegian state-aid register). Rescue/restructuring aid is notified aid outside the GBER and is not separately flagged in the register — assumed absent. Not a legal conclusion on state-aid eligibility.",
+                    "variant": "ok",
+                    "description": "Ingen FIV-kriterier slo til i åpent tilgjengelige data.",
+                    "description_en": "No FIV criteria were triggered in publicly available data.",
+                    "distress_basis": null,
+                    "rescuable_by_group": false
+                },
+                "assessed_at": "2026-10-04"
             },
             {
                 "orgnr": "998877665",
+                "classifier_version_sequence": 9,
                 "status": "distressed",
-                "score": 1,
-                "confidence": 1,
                 "company_status": "not_distressed",
                 "distress_basis": "group",
                 "group_assessment": {
@@ -160,19 +857,48 @@
                     "status": "distressed",
                     "basis": "aggregert_selskapsregnskap",
                     "root_orgnr": "997766554",
+                    "root_distressed": true,
                     "root_name": "Eksempel Konsern AS",
                     "members_total": 3,
                     "members_evaluated": 3,
                     "members_distressed": [
-                        {"orgnr": "997766554", "navn": "Eksempel Konsern AS", "triggers": ["accumulated_losses_over_50pct"]}
+                        {
+                            "orgnr": "997766554",
+                            "navn": "Eksempel Konsern AS",
+                            "triggers": [
+                                "accumulated_losses_over_50pct"
+                            ]
+                        }
                     ],
                     "capital_loss_ratio": 0.62,
+                    "distressed_capital_share": null,
+                    "data_year": null,
+                    "disclaimers": ["group_aggregated_estimate"],
                     "truncated": false
                 },
                 "rescuable_by_group": false,
-                "rescue_estimate": null
+                "rescue_estimate": null,
+                "verdict": {
+                    "verdict": "Ja",
+                    "verdict_en": "Yes",
+                    "label": "Ja (konsern)",
+                    "label_en": "Yes (group)",
+                    "has_caveat": false,
+                    "footnote": "Selskapets eget regnskap utløser ingen FIV-kriterier, men konsernet det inngår i gjør det. Etter GBER art. 2(18) skal vurderingen gjøres på både konsern- og selskapsnivå, og det er tilstrekkelig at ett av nivåene slår til (ESAs avklaring til Finansdepartementet, oktober 2020). Konserntallene er aggregert fra selskapsregnskapene uten eliminering av interne mellomværender — se konsernvurderingen for grunnlaget. Ikke en juridisk konklusjon om statsstøtte-kvalifikasjon.",
+                    "footnote_en": "The company's own accounts trigger no distress criteria, but the group it belongs to does. Under GBER art. 2(18) the assessment must be made at both group and company level, and it is sufficient that one level is met (EFTA Surveillance Authority clarification, October 2020). Group figures are aggregated from the individual accounts without eliminating intra-group balances — see the group assessment for the basis. Not a legal conclusion on state-aid eligibility.",
+                    "variant": "distressed",
+                    "description": "Konsernet selskapet inngår i oppfyller FIV-kriteriene. Selskapets egne tall gjør det ikke.",
+                    "description_en": "The group to which the company belongs meets the FIV criteria. The company's own figures do not.",
+                    "distress_basis": "group",
+                    "rescuable_by_group": false
+                },
+                "assessed_at": "2026-10-04"
             }
         ],
-        "_meta": {"total_requested": 2, "successful": 2, "failed": 0}
+        "_meta": {
+            "total_requested": 2,
+            "successful": 2,
+            "failed": 0
+        }
     }
 }

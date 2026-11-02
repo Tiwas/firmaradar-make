@@ -1,97 +1,816 @@
 {
     "name": "get_signals",
     "label": "Get risk signals",
-    "description": "Get aggregated decision-ready risk signals for a company in one call: KYC announcement signals (bankruptcy, merger, board changes), distress classification (FIV) and interim-balance status, plus a rolled-up aggregate. Firmaradar fuses these sources so you get a single risk view, not raw registry events.",
+    "description": "Retrieves company signals from multiple sources in one call: KYC announcements, distress classification (FIV), interim balances, ownership, hiring and other enrichment. The aggregate contains indicator flags and a KYC announcement count; inspect each source's error field before interpreting a negative flag.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Must be exactly 9 digits."
             }
         },
         {
+            "help": "Optional look-back start. 🚨 Applies ONLY to the announcement-based kyc_signals. Distress, interim balance, ownership churn, hiring, funding, IP, merger and the other sources report their CURRENT state and are unaffected — an old state signal is NOT excluded by this window. Capped at 1825 days back by the route.",
             "name": "since",
             "type": "date",
-            "label": "Signals since (date)",
-            "help": "Optional ISO date (YYYY-MM-DD). Overrides the default 730-day look-back. Capped at 1825 days back."
+            "label": "Signals since (date)"
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/signals",
+        "url": "/api/v1/company/{{parameters.orgnr}}/signals",
         "method": "GET",
         "qs": {
             "since": "{{formatDate(parameters.since, 'YYYY-MM-DD')}}"
         },
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
+            "output": "{{body}}"
         }
     },
     "interface": [
-        {"name": "orgnr", "type": "text", "label": "Organisasjonsnummer"},
-        {"name": "days_back", "type": "uinteger", "label": "Vindu (dager bakover)"},
+        {
+            "name": "orgnr",
+            "type": "text",
+            "label": "Organization number"
+        },
+        {
+            "name": "days_back",
+            "type": "uinteger",
+            "label": "Window (days back)"
+        },
         {
             "name": "kyc_signals",
-            "type": "collection",
-            "label": "KYC-signaler (kunngjøringer)",
             "spec": [
-                {"name": "count", "type": "uinteger", "label": "Antall signaler"},
+                {
+                    "name": "count",
+                    "type": "uinteger",
+                    "label": "Number of signals"
+                },
                 {
                     "name": "signals",
+                    "spec": {
+                        "spec": [
+                            {
+                                "name": "dato",
+                                "type": "text",
+                                "label": "Date; ISO date-only string (e.g. 2026-05-12), not a datetime"
+                            },
+                            {
+                                "name": "kunngjoring_type",
+                                "type": "text",
+                                "label": "Announcement type"
+                            },
+                            {
+                                "name": "kyc_category",
+                                "type": "text",
+                                "label": "KYC category"
+                            },
+                            {
+                                "name": "niva1_label",
+                                "type": "text",
+                                "label": "Announcement category label"
+                            },
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number"
+                            },
+                            {
+                                "name": "navn",
+                                "type": "text",
+                                "label": "Company name"
+                            },
+                            {
+                                "name": "hendelse_type",
+                                "type": "text",
+                                "label": "Event type"
+                            },
+                            {
+                                "name": "category",
+                                "type": "text",
+                                "label": "Event category"
+                            },
+                            {
+                                "name": "source",
+                                "type": "text",
+                                "label": "Source"
+                            }
+                        ],
+                        "type": "collection"
+                    },
                     "type": "array",
-                    "label": "Signaler",
+                    "label": "Signals"
+                },
+                {
+                    "name": "effective_window_days",
+                    "type": "uinteger",
+                    "label": "Window actually applied — can be narrower than days_back"
+                },
+                {
+                    "name": "history_truncated",
+                    "type": "boolean",
+                    "label": "🚨 Announcement history was CAPPED — the signal list is incomplete"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ],
+            "type": "collection",
+            "label": "KYC signals (announcements)"
+        },
+        {
+            "name": "distress",
+            "spec": [
+                {
+                    "name": "status",
+                    "type": "text",
+                    "label": "Status"
+                },
+                {
+                    "name": "status_en",
+                    "type": "text",
+                    "label": "Status (English)"
+                },
+                {
+                    "name": "disclaimers",
+                    "type": "array",
+                    "label": "Disclaimers attached to this classification"
+                },
+                {
+                    "name": "data_gaps",
+                    "type": "array",
+                    "label": "Inputs that were missing"
+                },
+                {
+                    "name": "coverage",
+                    "type": "text",
+                    "label": "'complete' or 'incomplete' — incomplete means the verdict is NOT fully assessed"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ],
+            "type": "collection",
+            "label": "Distress classification (FIV) — read coverage, data_gaps and disclaimers before treating a negative status as clean"
+        },
+        {
+            "name": "interim_balance",
+            "spec": [
+                {
+                    "name": "kunngjoring_dato",
+                    "type": "text",
+                    "label": "Announcement date (YYYY-MM-DD)"
+                },
+                {
+                    "name": "regnskapsperiode_dato",
+                    "type": "text",
+                    "label": "Accounting period date (YYYY-MM-DD)"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source"
+                },
+                {
+                    "name": "is_newer_than_metrics",
+                    "type": "boolean",
+                    "label": "Newer than available financial metrics"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ],
+            "type": "collection",
+            "label": "Interim balance"
+        },
+        {
+            "name": "aggregate",
+            "spec": [
+                {
+                    "name": "kyc_signal_count",
+                    "type": "uinteger",
+                    "label": "Number of KYC announcement signals"
+                },
+                {
+                    "name": "has_distress",
+                    "type": "boolean",
+                    "label": "FIV status is distressed; inspect coverage and data gaps"
+                },
+                {
+                    "name": "has_interim_balance",
+                    "type": "boolean",
+                    "label": "Interim balance signal is present"
+                },
+                {
+                    "name": "is_hiring_burst",
+                    "type": "boolean",
+                    "label": "Hiring burst signal"
+                },
+                {
+                    "name": "has_fusjon_relations",
+                    "type": "boolean",
+                    "label": "Merger or demerger relations exist"
+                },
+                {
+                    "name": "is_frivillig_registered",
+                    "type": "boolean",
+                    "label": "Registered in the voluntary register"
+                },
+                {
+                    "name": "has_frequent_owner_change",
+                    "type": "boolean",
+                    "label": "Frequent majority-owner changes"
+                }
+            ],
+            "type": "collection",
+            "label": "Combined aggregate. 🚨 Built from default false/zero values when a source fails — it carries NO error of its own. Inspect each source's error field before reading a negative aggregate as a real negative."
+        },
+        {
+            "name": "beneficial_owners",
+            "type": "collection",
+            "label": "Beneficial-owner signal",
+            "spec": [
+                {
+                    "name": "available",
+                    "type": "boolean",
+                    "label": "Whether the RRH lookup returned data"
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "label": "Why unavailable when available is false"
+                },
+                {
+                    "name": "owners",
+                    "type": "array",
+                    "label": "Beneficial owners (RRH)",
                     "spec": {
                         "type": "collection",
                         "spec": [
-                            {"name": "dato", "type": "date", "label": "Dato"},
-                            {"name": "type", "type": "text", "label": "Type"},
-                            {"name": "kategori", "type": "text", "label": "Kategori"},
-                            {"name": "beskrivelse", "type": "text", "label": "Beskrivelse"}
+                            {
+                                "name": "navn",
+                                "type": "text",
+                                "label": "Name"
+                            },
+                            {
+                                "name": "foedselsaar",
+                                "type": "text",
+                                "label": "Birth year"
+                            },
+                            {
+                                "name": "statsborgerskap",
+                                "type": "any",
+                                "label": "Citizenship; text, or an array of codes when the person holds several"
+                            },
+                            {
+                                "name": "bostedsland",
+                                "type": "any",
+                                "label": "Country of residence; text, or an array when several values are registered"
+                            },
+                            {
+                                "name": "kontrollgrunnlag",
+                                "type": "any",
+                                "label": "Basis of control — why this person is a beneficial owner; an array of codes from posisjoner[], or a single text value from registrertGrunnlag"
+                            },
+                            {
+                                "name": "andel_prosent",
+                                "type": "number",
+                                "label": "Ownership share (%)"
+                            },
+                            {
+                                "name": "andel_intervall",
+                                "type": "array",
+                                "label": "Share interval, when only a band is reported; always an array when present"
+                            }
                         ]
                     }
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('brreg_rrh')"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
                 }
             ]
         },
         {
-            "name": "distress",
+            "name": "ownership_churn",
             "type": "collection",
-            "label": "Distress-klassifisering (FIV)",
+            "label": "Ownership churn signal",
             "spec": [
-                {"name": "status", "type": "text", "label": "Status"},
-                {"name": "score", "type": "number", "label": "Score"},
-                {"name": "as_of", "type": "date", "label": "Vurdert per"}
+                {
+                    "name": "changes_total",
+                    "type": "uinteger",
+                    "label": "Owner changes in total"
+                },
+                {
+                    "name": "changes_in_window",
+                    "type": "uinteger",
+                    "label": "Owner changes inside the window"
+                },
+                {
+                    "name": "window_months",
+                    "type": "uinteger",
+                    "label": "Window length (months)"
+                },
+                {
+                    "name": "threshold",
+                    "type": "uinteger",
+                    "label": "Threshold that triggers the signal"
+                },
+                {
+                    "name": "last_change_date",
+                    "type": "text",
+                    "label": "Most recent owner change (YYYY-MM-DD)"
+                },
+                {
+                    "name": "period_months",
+                    "type": "uinteger",
+                    "label": "Period covered (months)"
+                },
+                {
+                    "name": "is_frequent_owner_change",
+                    "type": "boolean",
+                    "label": "Signal fired"
+                },
+                {
+                    "name": "calibrated",
+                    "type": "boolean",
+                    "label": "Threshold is calibrated for this population"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('ownership_snapshot')"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
             ]
         },
         {
-            "name": "interim_balance",
+            "name": "fusjon",
             "type": "collection",
-            "label": "Mellombalanse",
+            "label": "Merger/demerger relations",
             "spec": [
-                {"name": "has_interim_balance", "type": "boolean", "label": "Har mellombalanse"},
-                {"name": "dato", "type": "date", "label": "Dato"}
+                {
+                    "name": "orgnr",
+                    "type": "text",
+                    "label": "Organization number"
+                },
+                {
+                    "name": "has_any",
+                    "type": "boolean",
+                    "label": "Any merger relation exists"
+                },
+                {
+                    "name": "inbound",
+                    "type": "array",
+                    "label": "Companies merged INTO this one — it inherits them",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number of the other party"
+                            },
+                            {
+                                "name": "fusjon_dato",
+                                "type": "text",
+                                "label": "Merger date"
+                            },
+                            {
+                                "name": "kilde",
+                                "type": "text",
+                                "label": "Source"
+                            },
+                            {
+                                "name": "relasjon_type",
+                                "type": "text",
+                                "label": "'fusjon', 'fisjon' or 'ukjent' (untyped — treated as fusjon)"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "outbound",
+                    "type": "array",
+                    "label": "Companies this one was merged INTO",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "orgnr",
+                                "type": "text",
+                                "label": "Organization number of the other party"
+                            },
+                            {
+                                "name": "fusjon_dato",
+                                "type": "text",
+                                "label": "Merger date"
+                            },
+                            {
+                                "name": "kilde",
+                                "type": "text",
+                                "label": "Source"
+                            },
+                            {
+                                "name": "relasjon_type",
+                                "type": "text",
+                                "label": "'fusjon', 'fisjon' or 'ukjent' (untyped — treated as fusjon)"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "inbound_total",
+                    "type": "uinteger",
+                    "label": "Total inbound relations"
+                },
+                {
+                    "name": "outbound_total",
+                    "type": "uinteger",
+                    "label": "Total outbound relations"
+                },
+                {
+                    "name": "truncated",
+                    "type": "boolean",
+                    "label": "Lists capped — totals exceed what is returned"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
             ]
         },
         {
-            "name": "aggregate",
+            "name": "funding",
             "type": "collection",
-            "label": "Aggregert risiko",
+            "label": "Funding signal — grants and R&D activity",
             "spec": [
-                {"name": "risk_level", "type": "text", "label": "Risikonivå"},
-                {"name": "signal_count", "type": "uinteger", "label": "Antall signaler totalt"}
+                {
+                    "name": "grant_count",
+                    "type": "uinteger",
+                    "label": "Number of grants"
+                },
+                {
+                    "name": "total_belop_nok",
+                    "type": "number",
+                    "label": "Total amount (NOK)"
+                },
+                {
+                    "name": "latest_year",
+                    "type": "uinteger",
+                    "label": "Most recent grant year"
+                },
+                {
+                    "name": "kilder",
+                    "type": "array",
+                    "label": "Distinct sources"
+                },
+                {
+                    "name": "is_recently_funded",
+                    "type": "boolean",
+                    "label": "Recently funded"
+                },
+                {
+                    "name": "is_rd_active",
+                    "type": "boolean",
+                    "label": "R&D active"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('tildeling_data')"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ]
+        },
+        {
+            "name": "hiring",
+            "type": "collection",
+            "label": "Hiring signal",
+            "spec": [
+                {
+                    "name": "active_postings",
+                    "type": "uinteger",
+                    "label": "Active job postings"
+                },
+                {
+                    "name": "positions_active",
+                    "type": "uinteger",
+                    "label": "Positions in those postings"
+                },
+                {
+                    "name": "postings_30d",
+                    "type": "uinteger",
+                    "label": "Postings last 30 days"
+                },
+                {
+                    "name": "postings_90d",
+                    "type": "uinteger",
+                    "label": "Postings last 90 days"
+                },
+                {
+                    "name": "burst_score",
+                    "type": "number",
+                    "label": "Burst score"
+                },
+                {
+                    "name": "is_hiring_burst",
+                    "type": "boolean",
+                    "label": "Hiring burst detected"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('nav_arbeidsplassen')"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ]
+        },
+        {
+            "name": "ip_portfolio",
+            "type": "collection",
+            "label": "IP portfolio (Patentstyret)",
+            "spec": [
+                {
+                    "name": "available",
+                    "type": "boolean",
+                    "label": "Lookup completed"
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "label": "Why unavailable (not_enabled/no_key/access_denied/kilde_utilgjengelig/…)"
+                },
+                {
+                    "name": "patents",
+                    "type": "uinteger",
+                    "label": "Patents"
+                },
+                {
+                    "name": "patents_active",
+                    "type": "uinteger",
+                    "label": "Active patents"
+                },
+                {
+                    "name": "trademarks",
+                    "type": "uinteger",
+                    "label": "Trademarks"
+                },
+                {
+                    "name": "trademarks_active",
+                    "type": "uinteger",
+                    "label": "Active trademarks"
+                },
+                {
+                    "name": "designs",
+                    "type": "uinteger",
+                    "label": "Designs"
+                },
+                {
+                    "name": "designs_active",
+                    "type": "uinteger",
+                    "label": "Active designs"
+                },
+                {
+                    "name": "is_ip_active",
+                    "type": "boolean",
+                    "label": "Holds at least one right in force"
+                },
+                {
+                    "name": "rights",
+                    "type": "array",
+                    "label": "Rights in force — active first, then by type, then by date",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "kind",
+                                "type": "text",
+                                "label": "'patent', 'trademark' or 'design'"
+                            },
+                            {
+                                "name": "title",
+                                "type": "text",
+                                "label": "Title"
+                            },
+                            {
+                                "name": "regnr",
+                                "type": "text",
+                                "label": "Registration number"
+                            },
+                            {
+                                "name": "status",
+                                "type": "text",
+                                "label": "Status"
+                            },
+                            {
+                                "name": "date",
+                                "type": "text",
+                                "label": "Status date"
+                            },
+                            {
+                                "name": "is_active",
+                                "type": "boolean",
+                                "label": "In force"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "rights_more",
+                    "type": "uinteger",
+                    "label": "Rights in force beyond the cap"
+                },
+                {
+                    "name": "rights_all",
+                    "type": "array",
+                    "label": "All rights, in force and lapsed",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "kind",
+                                "type": "text",
+                                "label": "'patent', 'trademark' or 'design'"
+                            },
+                            {
+                                "name": "title",
+                                "type": "text",
+                                "label": "Title"
+                            },
+                            {
+                                "name": "regnr",
+                                "type": "text",
+                                "label": "Registration number"
+                            },
+                            {
+                                "name": "status",
+                                "type": "text",
+                                "label": "Status"
+                            },
+                            {
+                                "name": "date",
+                                "type": "text",
+                                "label": "Status date"
+                            },
+                            {
+                                "name": "is_active",
+                                "type": "boolean",
+                                "label": "In force"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "rights_all_more",
+                    "type": "uinteger",
+                    "label": "Rights beyond the cap in rights_all"
+                },
+                {
+                    "name": "rights_inactive",
+                    "type": "uinteger",
+                    "label": "Lapsed rights"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ]
+        },
+        {
+            "name": "digital_maturity",
+            "type": "collection",
+            "label": "Digital maturity signal",
+            "spec": [
+                {
+                    "name": "peppol_einvoice",
+                    "type": "boolean",
+                    "label": "Registered for Peppol e-invoicing"
+                },
+                {
+                    "name": "peppol_name",
+                    "type": "text",
+                    "label": "Name in the Peppol directory"
+                },
+                {
+                    "name": "checked_at",
+                    "type": "text",
+                    "label": "When the lookup ran"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('peppol_directory')"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
+            ]
+        },
+        {
+            "name": "frivillighet",
+            "type": "collection",
+            "label": "Voluntary register (Frivillighetsregisteret)",
+            "spec": [
+                {
+                    "name": "orgnr",
+                    "type": "text",
+                    "label": "Organization number"
+                },
+                {
+                    "name": "available",
+                    "type": "boolean",
+                    "label": "🚨 false means COULD NOT DETERMINE — not 'not registered'"
+                },
+                {
+                    "name": "registered",
+                    "type": "boolean",
+                    "label": "Entered in the voluntary register"
+                },
+                {
+                    "name": "registreringsdato",
+                    "type": "text",
+                    "label": "Entry date (ISO)"
+                },
+                {
+                    "name": "kategorier",
+                    "type": "array",
+                    "label": "ICNPO categories",
+                    "spec": {
+                        "type": "collection",
+                        "spec": [
+                            {
+                                "name": "kategori",
+                                "type": "text",
+                                "label": "ICNPO category code"
+                            },
+                            {
+                                "name": "icnpo_nummer",
+                                "type": "text",
+                                "label": "ICNPO number"
+                            },
+                            {
+                                "name": "navn",
+                                "type": "text",
+                                "label": "Category name"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "grasrotandel",
+                    "type": "boolean",
+                    "label": "Participates in the grassroots-share scheme"
+                },
+                {
+                    "name": "source",
+                    "type": "text",
+                    "label": "Source ('frivillighetsregisteret')"
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "label": "Why unavailable"
+                },
+                {
+                    "name": "error",
+                    "type": "text",
+                    "label": "🚨 Set when THIS source failed. The aggregate then counts the source as absent, which reads like a negative result — check this before trusting it."
+                }
             ]
         }
     ],
@@ -101,11 +820,32 @@
         "kyc_signals": {
             "count": 1,
             "signals": [
-                {"dato": "2026-05-12", "type": "tvangsopplosning_varslet", "kategori": "konkurs", "beskrivelse": "Tvangsoppløsning varslet"}
+                {
+                    "orgnr": "999999999",
+                    "dato": "2026-05-12",
+                    "kunngjoring_type": "Kapital",
+                    "niva1_label": "Kapital",
+                    "navn": "Eksempel AS",
+                    "hendelse_type": null,
+                    "category": null,
+                    "kyc_category": "kapitalforhoyelse",
+                    "source": "kunngjoring_event"
+                }
             ]
         },
-        "distress": {"status": "not_distressed", "score": 0.12, "as_of": "2026-04-30"},
-        "interim_balance": {"has_interim_balance": false, "dato": null},
-        "aggregate": {"risk_level": "lav", "signal_count": 1}
+        "distress": {
+            "status": "not_distressed",
+            "coverage": "complete"
+        },
+        "interim_balance": null,
+        "aggregate": {
+            "kyc_signal_count": 1,
+            "has_distress": false,
+            "has_interim_balance": false,
+            "is_hiring_burst": false,
+            "has_fusjon_relations": false,
+            "is_frivillig_registered": false,
+            "has_frequent_owner_change": false
+        }
     }
 }

@@ -1,7 +1,7 @@
 {
     "name": "watch_nace_changes",
     "label": "Watch an industry (NACE)",
-    "description": "Instant trigger — fires when a company in the chosen NACE industry code changes (created, updated, deleted, status changed). Supports geographic and size filters. Registers a Firmaradar NACE subscription.",
+    "description": "Instant trigger — fires when a company in the chosen NACE industry code changes (created, updated, deleted, status changed). Supports geographic and size filters. Hourly and daily aggregation deliver a batch in events, or a summary when capped is true. Registers a Firmaradar NACE subscription. Only one flow per account and NACE code is supported; retrying with the same callback returns its subscription, while a different callback returns HTTP 409 without replacing the first. Delivery is at-least-once: the same event can arrive more than once. Deduplicate on Delivery ID only when it is present and non-empty; when it is empty, treat every delivery as distinct.",
     "connection": "apiKey",
     "type": "instant",
     "webhook": "nace_changes",
@@ -14,33 +14,119 @@
         {
             "name": "orgnr",
             "type": "text",
-            "label": "Organisasjonsnummer"
+            "label": "Organization number"
         },
         {
             "name": "navn",
             "type": "text",
-            "label": "Selskapsnavn"
+            "label": "Company name"
         },
         {
             "name": "nace_code",
             "type": "text",
-            "label": "NACE-kode"
+            "label": "NACE code"
+        },
+        {
+            "name": "matched_nace_code",
+            "type": "text",
+            "label": "Matched subscription NACE code (real-time event)"
         },
         {
             "name": "kommunenr",
             "type": "text",
-            "label": "Kommunenummer"
+            "label": "Municipality number"
         },
         {
             "name": "announcement",
             "type": "collection",
-            "label": "Kunngjøring (BRREG)",
+            "label": "Official announcement",
             "spec": []
         },
         {
             "name": "delivered_via",
             "type": "text",
-            "label": "Levert via"
+            "label": "Delivered via"
+        },
+        {
+            "name": "aggregation_mode",
+            "type": "text",
+            "label": "Aggregation mode (digest)"
+        },
+        {
+            "name": "event_count",
+            "type": "uinteger",
+            "label": "Number of events (digest)"
+        },
+        {
+            "name": "event_type_counts",
+            "type": "collection",
+            "label": "Counts by event type (digest)",
+            "spec": [
+                {"name": "created", "type": "uinteger", "label": "Created"},
+                {"name": "updated", "type": "uinteger", "label": "Updated"},
+                {"name": "deleted", "type": "uinteger", "label": "Deleted"},
+                {"name": "status_changed", "type": "uinteger", "label": "Status changed"}
+            ]
+        },
+        {
+            "name": "generated_at",
+            "type": "text",
+            "label": "Generated at (digest)"
+        },
+        {
+            "name": "capped",
+            "type": "boolean",
+            "label": "Volume cap reached (digest)"
+        },
+        {
+            "name": "events",
+            "type": "array",
+            "label": "Events (uncapped digest)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "event_type", "type": "text", "label": "Event type"},
+                    {"name": "orgnr", "type": "text", "label": "Organization number"},
+                    {"name": "navn", "type": "text", "label": "Company name"},
+                    {"name": "nace_code", "type": "text", "label": "NACE code"},
+                    {"name": "matched_nace_code", "type": "text", "label": "Matched subscription NACE code"},
+                    {"name": "kommunenr", "type": "text", "label": "Municipality number"},
+                    {"name": "announcement", "type": "collection", "label": "Official announcement", "spec": []},
+                    {"name": "delivered_via", "type": "text", "label": "Delivered via"}
+                ]
+            }
+        },
+        {
+            "name": "cap_threshold",
+            "type": "uinteger",
+            "label": "Daily volume cap (capped digest)"
+        },
+        {
+            "name": "unique_orgnr_count",
+            "type": "uinteger",
+            "label": "Unique companies (capped digest)"
+        },
+        {
+            "name": "top_orgnr",
+            "type": "array",
+            "label": "Top companies (capped digest)",
+            "spec": {
+                "type": "collection",
+                "spec": [
+                    {"name": "orgnr", "type": "text", "label": "Organization number"},
+                    {"name": "event_count", "type": "uinteger", "label": "Number of events"}
+                ]
+            }
+        },
+        {
+            "name": "note",
+            "type": "text",
+            "label": "Volume cap note (capped digest)"
+        },
+        {
+            "name": "deliveryId",
+            "type": "text",
+            "label": "Delivery ID"
         }
     ],
     "samples": {
@@ -48,8 +134,10 @@
         "orgnr": "923609016",
         "navn": "Eksempel AS",
         "nace_code": "47.110",
+        "matched_nace_code": "47",
         "kommunenr": "0301",
         "announcement": {},
-        "delivered_via": "nace_overvakning"
+        "delivered_via": "nace_overvakning",
+        "deliveryId": "3f2a9c0e8b7d41a6b5e4c3d2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2"
     }
 }

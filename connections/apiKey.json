@@ -8,19 +8,12 @@
             "type": "password",
             "label": "API Key",
             "required": true,
-            "help": "Generate at https://firmaradar.no/min-side/api-keys. The key is stored encrypted in Make."
-        },
-        {
-            "name": "baseUrl",
-            "type": "url",
-            "label": "Base URL",
-            "required": true,
-            "default": "https://firmaradar.no",
-            "help": "Change only if you run a self-hosted Firmaradar instance."
+            "help": "Generate a key at https://firmaradar.no/min-side/api-keys. Make stores it encrypted and sends it as an Authorization: Bearer header on every request."
         }
     ],
     "communication": {
-        "url": "{{parameters.baseUrl}}/api/v1/health/ping",
+        "//": "The connection test calls a fixed Firmaradar URL. HTTP 401 means an invalid key; 402, 403 and 429 mean the key authenticated but entitlement or quota blocked this lookup. Modules use relative URLs against the app's fixed baseUrl, so the connection does not need response.data.baseUrl or a user-editable URL.",
+        "url": "https://firmaradar.no/api/v1/company/923609016",
         "method": "GET",
         "headers": {
             "Authorization": "Bearer {{parameters.apiKey}}",
@@ -28,16 +21,16 @@
             "Accept": "application/json"
         },
         "response": {
+            "valid": "{{statusCode === 200 || statusCode === 402 || statusCode === 403 || statusCode === 429}}",
             "error": {
-                "message": "[{{statusCode}}] Authentication failed. Verify your API key at https://firmaradar.no/min-side/api-keys. {{ifempty(body.message, body.error)}}"
-            },
-            "valid": {
-                "condition": "{{statusCode === 200}}"
-            },
-            "data": {
-                "apiKey": "{{parameters.apiKey}}",
-                "baseUrl": "{{parameters.baseUrl}}"
+                "type": "InvalidAccessTokenError",
+                "message": "[{{statusCode}}] Invalid API key. Generate a new one at https://firmaradar.no/min-side/api-keys. {{ifempty(body.message, body.error)}}"
             }
+        },
+        "log": {
+            "sanitize": [
+                "request.headers.authorization"
+            ]
         }
     }
 }

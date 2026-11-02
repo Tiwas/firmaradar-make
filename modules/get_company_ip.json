@@ -1,75 +1,185 @@
 {
     "name": "get_company_ip",
     "label": "Get IP portfolio",
-    "description": "Get a company's intellectual-property portfolio from Patentstyret: patents, trademarks and designs (totals, active counts, and a list of individual rights). A dedicated action so IP is as discoverable as financials, roles and ownership.",
+    "description": "Retrieves the company’s intellectual property rights from Patentstyret (the Norwegian Industrial Property Office) — patents, trademarks and designs, with totals, active counts and the individual rights. rights contains only rights IN FORCE; the full history including lapsed cases is in rights_all. The rights list is ordered active first, then by type (patents, then trademarks, then designs), and by date within each type — it is NOT globally newest-first, so rights[0] is not necessarily the most recent right.",
     "connection": "apiKey",
     "type": "action",
     "parameters": [
         {
+            "help": "Nine-digit Norwegian organization number (orgnr) from Brønnøysundregistrene (Norwegian Business Register).",
             "name": "orgnr",
             "type": "text",
-            "label": "Organisation number",
+            "label": "Organization number",
             "required": true,
-            "help": "9-digit Norwegian organisation number.",
             "validate": {
                 "pattern": "^[0-9]{9}$",
-                "patternErrorMessage": "Organisation number must be exactly 9 digits."
+                "patternErrorMessage": "Organization number must be exactly 9 digits."
             }
         }
     ],
     "communication": {
-        "url": "{{connection.baseUrl}}/api/v1/company/{{parameters.orgnr}}/ip",
+        "url": "/api/v1/company/{{parameters.orgnr}}/ip",
         "method": "GET",
-        "headers": {
-            "Authorization": "Bearer {{connection.apiKey}}",
-            "X-FR-Client": "make-firmaradar/0.1",
-            "Accept": "application/json"
-        },
         "response": {
-            "output": "{{body.ip_rettigheter}}",
-            "error": {
-                "message": "[{{statusCode}}] {{ifempty(body.error_code, '')}} {{ifempty(body.message, body.error)}}"
-            }
-        }
+            "output": "{{body.ip_rettigheter}}"
+        },
+        "//": "Uses the DEDICATED /ip route, not /api/v1/company/<orgnr>?ip=1. Measured with metering_weights.weight_for_request: the query form bills 1.0 credit and the dedicated route 5.0. Both do the same external Patentstyret call, so the query form undercharges it fivefold and corrupts usage aggregation."
     },
     "interface": [
-        {"name": "available", "type": "boolean", "label": "Har IP-data"},
-        {"name": "patents", "type": "uinteger", "label": "Patenter"},
-        {"name": "patents_active", "type": "uinteger", "label": "Aktive patenter"},
-        {"name": "trademarks", "type": "uinteger", "label": "Varemerker"},
-        {"name": "trademarks_active", "type": "uinteger", "label": "Aktive varemerker"},
-        {"name": "designs", "type": "uinteger", "label": "Design"},
-        {"name": "designs_active", "type": "uinteger", "label": "Aktive design"},
-        {"name": "is_ip_active", "type": "boolean", "label": "Har aktive rettigheter"},
+        {
+            "name": "available",
+            "type": "boolean",
+            "label": "Has IP data"
+        },
+        {
+            "name": "reason",
+            "type": "text",
+            "label": "Why unavailable when available=false (not_enabled/no_key/access_denied/kilde_utilgjengelig)"
+        },
+        {
+            "name": "patents",
+            "type": "uinteger",
+            "label": "Patents"
+        },
+        {
+            "name": "patents_active",
+            "type": "uinteger",
+            "label": "Active patents"
+        },
+        {
+            "name": "trademarks",
+            "type": "uinteger",
+            "label": "Trademarks"
+        },
+        {
+            "name": "trademarks_active",
+            "type": "uinteger",
+            "label": "Active trademarks"
+        },
+        {
+            "name": "designs",
+            "type": "uinteger",
+            "label": "Designs"
+        },
+        {
+            "name": "designs_active",
+            "type": "uinteger",
+            "label": "Active designs"
+        },
+        {
+            "name": "is_ip_active",
+            "type": "boolean",
+            "label": "Has active rights"
+        },
         {
             "name": "rights",
+            "spec": {
+                "spec": [
+                    {
+                        "name": "date",
+                        "type": "text",
+                        "label": "Date; ISO date-only string (e.g. 2015-04-12), not a datetime"
+                    },
+                    {
+                        "name": "kind",
+                        "type": "text",
+                        "label": "Type"
+                    },
+                    {
+                        "name": "regnr",
+                        "type": "text",
+                        "label": "Reg. no."
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "Title"
+                    }
+                ],
+                "type": "collection"
+            },
             "type": "array",
-            "label": "Rettigheter (nyeste først)",
+            "label": "Rights IN FORCE only — lapsed cases are NOT here. Ordered by type (patent, trademark, design), then by date within each type."
+        },
+        {
+            "name": "rights_more",
+            "type": "uinteger",
+            "label": "Additional rights in force beyond the cap — counts active cases only"
+        },
+        {
+            "name": "rights_all",
+            "type": "array",
+            "label": "All rights, IN FORCE and LAPSED — the portfolio history",
             "spec": {
                 "type": "collection",
                 "spec": [
-                    {"name": "date", "type": "date", "label": "Dato"},
-                    {"name": "kind", "type": "text", "label": "Type"},
-                    {"name": "regnr", "type": "text", "label": "Reg.nr"},
-                    {"name": "status", "type": "text", "label": "Status"},
-                    {"name": "title", "type": "text", "label": "Tittel"}
+                    {
+                        "name": "kind",
+                        "type": "text",
+                        "label": "'patent', 'trademark' or 'design'"
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "Title"
+                    },
+                    {
+                        "name": "regnr",
+                        "type": "text",
+                        "label": "Registration number"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "date",
+                        "type": "text",
+                        "label": "Status date"
+                    },
+                    {
+                        "name": "is_active",
+                        "type": "boolean",
+                        "label": "In force — the flag that separates active from lapsed"
+                    }
                 ]
             }
         },
-        {"name": "rights_more", "type": "uinteger", "label": "Flere rettigheter (ut over lista)"}
+        {
+            "name": "rights_all_more",
+            "type": "uinteger",
+            "label": "Additional rights beyond the cap in rights_all"
+        },
+        {
+            "name": "rights_inactive",
+            "type": "uinteger",
+            "label": "How many of them are lapsed"
+        }
     ],
     "samples": {
         "available": true,
-        "patents": 393,
-        "patents_active": 1,
-        "trademarks": 130,
-        "trademarks_active": 41,
-        "designs": 0,
+        "patents": 3,
+        "patents_active": 2,
+        "trademarks": 7,
+        "trademarks_active": 5,
+        "designs": 1,
         "designs_active": 0,
         "is_ip_active": true,
         "rights": [
-            {"date": "2026-06-18", "kind": "trademark", "regnr": "202607626", "status": "Under behandling", "title": "OSLO ENERGY FORUM"}
+            {
+                "kind": "trademark",
+                "regnr": "302015000123",
+                "title": "EQUINOR",
+                "status": "Registrert",
+                "date": "2015-04-12"
+            }
         ],
-        "rights_more": 17
+        "rights_more": 6
     }
 }
